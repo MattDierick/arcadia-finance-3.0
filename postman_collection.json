@@ -1,0 +1,2414 @@
+{
+  "info": {
+    "name": "Arcadia Finance API",
+    "description": "REST API for the Arcadia Finance demo banking application.\n\nWARNING: Intentionally vulnerable (SQL injection, plain-text passwords, verbose errors) for F5 WAF/security demonstration purposes. NEVER deploy in production.\n\n## Authentication\n\nAll private endpoints require a valid JWT Bearer token (HS256, 8-hour expiry).\n\nWorkflow:\n1. POST /api/token with username + password -> receive access_token\n2. Every request: Authorization: Bearer <access_token>\n\nThe collection variable {{base_url}} defaults to http://localhost:8080. After running 'Get Token' or 'Login', the {{token}} variable is set automatically.",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "Obtain and invalidate JWT tokens",
+      "item": [
+        {
+          "name": "Get Token  POST /api/token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "token"
+              ]
+            },
+            "description": "Issues a JWT Bearer token (HS256, 8-hour expiry). The test script automatically saves the token to the {{token}} collection variable.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"alice\",\n  \"password\": \"alice123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "    pm.collectionVariables.set('token', json.access_token);",
+                  "    console.log('Token saved to {{token}}');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 – Token issued (alice)",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/token",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "token"
+                  ]
+                },
+                "description": "Issues a JWT Bearer token (HS256, 8-hour expiry). The test script automatically saves the token to the {{token}} collection variable.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"alice\",\n  \"password\": \"alice123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"access_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"token_type\": \"bearer\",\n  \"expires_in\": 28800,\n  \"user\": {\n    \"id\": 1,\n    \"name\": \"Alice\",\n    \"surname\": \"Moreau\",\n    \"email\": \"alice.moreau@arcadiafinance.com\",\n    \"phone\": \"+33 6 12 34 56 78\",\n    \"username\": \"alice\"\n  }\n}"
+            },
+            {
+              "name": "401 – Invalid credentials",
+              "status": "Unauthorized",
+              "code": 401,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/token",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "token"
+                  ]
+                },
+                "description": "Issues a JWT Bearer token (HS256, 8-hour expiry). The test script automatically saves the token to the {{token}} collection variable.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"alice\",\n  \"password\": \"alice123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"Invalid username or password\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login  POST /api/login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "login"
+              ]
+            },
+            "description": "Authenticates the user, sets a Flask session cookie and returns a JWT.\nNOTE: Intentionally vulnerable to SQL injection (F5 demo surface).\nThe test script automatically saves the token to the {{token}} collection variable.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"thomas\",\n  \"password\": \"thomas123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "    pm.collectionVariables.set('token', json.access_token);",
+                  "    console.log('Token saved to {{token}}');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 – Login successful (thomas)",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/login",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "login"
+                  ]
+                },
+                "description": "Authenticates the user, sets a Flask session cookie and returns a JWT.\nNOTE: Intentionally vulnerable to SQL injection (F5 demo surface).\nThe test script automatically saves the token to the {{token}} collection variable.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"thomas\",\n  \"password\": \"thomas123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"id\": 2,\n  \"name\": \"Thomas\",\n  \"surname\": \"Lefebvre\",\n  \"email\": \"thomas.lefebvre@arcadiafinance.com\",\n  \"phone\": \"+33 6 23 45 67 89\",\n  \"username\": \"thomas\",\n  \"access_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"token_type\": \"bearer\",\n  \"expires_in\": 28800\n}"
+            },
+            {
+              "name": "401 – Invalid credentials",
+              "status": "Unauthorized",
+              "code": 401,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/login",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "login"
+                  ]
+                },
+                "description": "Authenticates the user, sets a Flask session cookie and returns a JWT.\nNOTE: Intentionally vulnerable to SQL injection (F5 demo surface).\nThe test script automatically saves the token to the {{token}} collection variable.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"thomas\",\n  \"password\": \"thomas123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"Invalid username or password\"\n}"
+            },
+            {
+              "name": "500 – SQL error (SQLi surface)",
+              "status": "Internal Server Error",
+              "code": 500,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/login",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "login"
+                  ]
+                },
+                "description": "Authenticates the user, sets a Flask session cookie and returns a JWT.\nNOTE: Intentionally vulnerable to SQL injection (F5 demo surface).\nThe test script automatically saves the token to the {{token}} collection variable.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"thomas\",\n  \"password\": \"thomas123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"Database error: syntax error in SQL query...\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logout  POST /api/logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "logout"
+              ]
+            },
+            "description": "Clears the server-side Flask session cookie. The client must also remove the JWT from localStorage."
+          },
+          "response": [
+            {
+              "name": "200 – Session cleared",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/logout",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "logout"
+                  ]
+                },
+                "description": "Clears the server-side Flask session cookie. The client must also remove the JWT from localStorage."
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"message\": \"Logged out\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "Current user profile and user list",
+      "item": [
+        {
+          "name": "Get My Profile  GET /api/me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "me"
+              ]
+            },
+            "description": "Returns the profile of the currently authenticated user.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - User profile",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/me",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "me"
+                  ]
+                },
+                "description": "Returns the profile of the currently authenticated user.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"id\": 1,\n  \"name\": \"Alice\",\n  \"surname\": \"Moreau\",\n  \"email\": \"alice.moreau@arcadiafinance.com\",\n  \"phone\": \"+33 6 12 34 56 78\",\n  \"username\": \"alice\"\n}"
+            },
+            {
+              "name": "401 - Not authenticated",
+              "status": "Unauthorized",
+              "code": 401,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/me",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "me"
+                  ]
+                },
+                "description": "Returns the profile of the currently authenticated user.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"Missing or invalid token\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "List All Users  GET /api/users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "description": "Returns the full user directory.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Array of all users",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/users",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "users"
+                  ]
+                },
+                "description": "Returns the full user directory.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "[\n  {\n    \"id\": 1,\n    \"name\": \"Alice\",\n    \"username\": \"alice\"\n  },\n  {\n    \"id\": 2,\n    \"name\": \"Thomas\",\n    \"username\": \"thomas\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Get User by ID BOLA  GET /api/users/2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/2",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "2"
+              ]
+            },
+            "description": "INTENTIONALLY VULNERABLE TO BOLA (OWASP API1:2023).\nAny valid token holder can enumerate all user profiles including plain-text passwords:\n  GET /api/users/1 -> Alice + password\n  GET /api/users/2 -> Thomas + password\n  GET /api/users/3 -> Sophie + password\n  GET /api/users/4 -> Lucas + password",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Thomas profile (plain-text password exposed)",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/users/2",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "users",
+                    "2"
+                  ]
+                },
+                "description": "INTENTIONALLY VULNERABLE TO BOLA (OWASP API1:2023).\nAny valid token holder can enumerate all user profiles including plain-text passwords:\n  GET /api/users/1 -> Alice + password\n  GET /api/users/2 -> Thomas + password\n  GET /api/users/3 -> Sophie + password\n  GET /api/users/4 -> Lucas + password",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"id\": 2,\n  \"name\": \"Thomas\",\n  \"surname\": \"Lefebvre\",\n  \"email\": \"thomas.lefebvre@arcadiafinance.com\",\n  \"phone\": \"+33 6 23 45 67 89\",\n  \"username\": \"thomas\",\n  \"password\": \"thomas123\"\n}"
+            },
+            {
+              "name": "404 - User not found",
+              "status": "Not Found",
+              "code": 404,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/users/2",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "users",
+                    "2"
+                  ]
+                },
+                "description": "INTENTIONALLY VULNERABLE TO BOLA (OWASP API1:2023).\nAny valid token holder can enumerate all user profiles including plain-text passwords:\n  GET /api/users/1 -> Alice + password\n  GET /api/users/2 -> Thomas + password\n  GET /api/users/3 -> Sophie + password\n  GET /api/users/4 -> Lucas + password",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"User not found\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Accounts",
+      "description": "Bank accounts belonging to the authenticated user",
+      "item": [
+        {
+          "name": "List My Accounts  GET /api/accounts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/accounts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts"
+              ]
+            },
+            "description": "List bank accounts for the authenticated user.\nOptional user_id query param overrides the user (BOLA surface - no ownership check).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Array of accounts",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/accounts",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "accounts"
+                  ]
+                },
+                "description": "List bank accounts for the authenticated user.\nOptional user_id query param overrides the user (BOLA surface - no ownership check).",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "[\n  {\n    \"id\": 1,\n    \"account_number\": \"FR7601234001001\",\n    \"type\": \"checking\",\n    \"balance\": 12450.75,\n    \"currency\": \"EUR\",\n    \"created_at\": \"2026-01-15T09:00:00\"\n  },\n  {\n    \"id\": 2,\n    \"account_number\": \"FR7601234001002\",\n    \"type\": \"savings\",\n    \"balance\": 35000.0,\n    \"currency\": \"EUR\",\n    \"created_at\": \"2026-01-15T09:00:00\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "List Accounts BOLA  GET /api/accounts?user_id=2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/accounts?user_id=2",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts"
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "2"
+                }
+              ]
+            },
+            "description": "BOLA demo: pass a different user_id to see another user accounts without authorization check.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Another user accounts (BOLA)",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/accounts?user_id=2",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "accounts"
+                  ],
+                  "query": [
+                    {
+                      "key": "user_id",
+                      "value": "2"
+                    }
+                  ]
+                },
+                "description": "BOLA demo: pass a different user_id to see another user accounts without authorization check.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "[\n  {\n    \"id\": 3,\n    \"account_number\": \"FR7601234002001\",\n    \"type\": \"checking\",\n    \"balance\": 8200.0,\n    \"currency\": \"EUR\",\n    \"created_at\": \"2026-01-20T10:00:00\"\n  }\n]"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Transfers",
+      "description": "Money transfers between accounts",
+      "item": [
+        {
+          "name": "Get Transfer History  GET /api/transfers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/transfers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "transfers"
+              ]
+            },
+            "description": "Returns all transfers (sent and received) for the authenticated user, ordered by date descending.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - List of transfers",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/transfers",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "transfers"
+                  ]
+                },
+                "description": "Returns all transfers (sent and received) for the authenticated user, ordered by date descending.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "[\n  {\n    \"id\": 7,\n    \"from_account\": \"FR7601234001001\",\n    \"to_account\": \"FR7601234002001\",\n    \"amount\": 500.0,\n    \"note\": \"Dinner split\",\n    \"status\": \"completed\",\n    \"created_at\": \"2026-07-01T10:30:00\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Create Transfer  POST /api/transfer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/transfer",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "transfer"
+              ]
+            },
+            "description": "Executes a money transfer. The transfer-service validates balances atomically.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"from_account\": \"FR7601234001001\",\n  \"to_account\": \"FR7601234002001\",\n  \"amount\": 250.0,\n  \"note\": \"Invoice #42\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Transfer completed",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/transfer",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "transfer"
+                  ]
+                },
+                "description": "Executes a money transfer. The transfer-service validates balances atomically.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"from_account\": \"FR7601234001001\",\n  \"to_account\": \"FR7601234002001\",\n  \"amount\": 250.0,\n  \"note\": \"Invoice #42\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"message\": \"Transfer completed successfully\",\n  \"transfer_id\": 14,\n  \"from_account\": \"FR7601234001001\",\n  \"to_account\": \"FR7601234002001\",\n  \"amount\": 250.0,\n  \"note\": \"Invoice #42\"\n}"
+            },
+            {
+              "name": "422 - Insufficient funds",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/transfer",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "transfer"
+                  ]
+                },
+                "description": "Executes a money transfer. The transfer-service validates balances atomically.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"from_account\": \"FR7601234001001\",\n  \"to_account\": \"FR7601234002001\",\n  \"amount\": 250.0,\n  \"note\": \"Invoice #42\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"Insufficient funds\"\n}"
+            },
+            {
+              "name": "400 - Missing required field",
+              "status": "Bad Request",
+              "code": 400,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/transfer",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "transfer"
+                  ]
+                },
+                "description": "Executes a money transfer. The transfer-service validates balances atomically.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"from_account\": \"FR7601234001001\",\n  \"to_account\": \"FR7601234002001\",\n  \"amount\": 250.0,\n  \"note\": \"Invoice #42\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"amount is required\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Stocks",
+      "description": "Live stock quotes, price history and share purchases via Yahoo Finance MCP (stock-service port 8082). All routes proxied through main-app, require JWT.",
+      "item": [
+        {
+          "name": "Get Stock Quote  GET /api/stocks/quote",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/stocks/quote?ticker=AAPL",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "stocks",
+                "quote"
+              ],
+              "query": [
+                {
+                  "key": "ticker",
+                  "value": "AAPL"
+                }
+              ]
+            },
+            "description": "Returns a real-time normalised quote for the requested ticker (yfinance MCP).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Live quote (AAPL)",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/stocks/quote?ticker=AAPL",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "stocks",
+                    "quote"
+                  ],
+                  "query": [
+                    {
+                      "key": "ticker",
+                      "value": "AAPL"
+                    }
+                  ]
+                },
+                "description": "Returns a real-time normalised quote for the requested ticker (yfinance MCP).",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"ticker\": \"AAPL\",\n  \"name\": \"Apple Inc.\",\n  \"price\": 213.49,\n  \"currency\": \"USD\",\n  \"exchange\": \"NMS\",\n  \"change\": 1.23,\n  \"change_pct\": 0.58,\n  \"market_cap\": 3280000000000,\n  \"pe_ratio\": 33.4,\n  \"volume\": 52341200,\n  \"day_high\": 215.1,\n  \"day_low\": 211.85,\n  \"fifty_two_week_high\": 237.23,\n  \"fifty_two_week_low\": 164.08,\n  \"sector\": \"Technology\",\n  \"industry\": \"Consumer Electronics\"\n}"
+            },
+            {
+              "name": "404 - Ticker not found",
+              "status": "Not Found",
+              "code": 404,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/stocks/quote?ticker=AAPL",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "stocks",
+                    "quote"
+                  ],
+                  "query": [
+                    {
+                      "key": "ticker",
+                      "value": "AAPL"
+                    }
+                  ]
+                },
+                "description": "Returns a real-time normalised quote for the requested ticker (yfinance MCP).",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"Ticker INVALID not found\"\n}"
+            },
+            {
+              "name": "503 - stock-service unavailable",
+              "status": "Service Unavailable",
+              "code": 503,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/stocks/quote?ticker=AAPL",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "stocks",
+                    "quote"
+                  ],
+                  "query": [
+                    {
+                      "key": "ticker",
+                      "value": "AAPL"
+                    }
+                  ]
+                },
+                "description": "Returns a real-time normalised quote for the requested ticker (yfinance MCP).",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"stock-service unavailable\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Stock History  GET /api/stocks/history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/stocks/history?ticker=AAPL&period=1mo",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "stocks",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "ticker",
+                  "value": "AAPL"
+                },
+                {
+                  "key": "period",
+                  "value": "1mo"
+                }
+              ]
+            },
+            "description": "Returns OHLCV price history. Valid periods: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Price history (AAPL 1mo)",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/stocks/history?ticker=AAPL&period=1mo",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "stocks",
+                    "history"
+                  ],
+                  "query": [
+                    {
+                      "key": "ticker",
+                      "value": "AAPL"
+                    },
+                    {
+                      "key": "period",
+                      "value": "1mo"
+                    }
+                  ]
+                },
+                "description": "Returns OHLCV price history. Valid periods: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "[\n  {\n    \"date\": \"2026-06-08\",\n    \"open\": 210.52,\n    \"high\": 212.3,\n    \"low\": 209.85,\n    \"close\": 211.6,\n    \"volume\": 45230100\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Search Stock Ticker  GET /api/stocks/search",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/stocks/search?q=NVDA",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "stocks",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "NVDA"
+                }
+              ]
+            },
+            "description": "Resolves an exact ticker symbol. Must be exact (e.g. AAPL not Apple). Max 10 chars.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Ticker resolved (NVDA)",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/stocks/search?q=NVDA",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "stocks",
+                    "search"
+                  ],
+                  "query": [
+                    {
+                      "key": "q",
+                      "value": "NVDA"
+                    }
+                  ]
+                },
+                "description": "Resolves an exact ticker symbol. Must be exact (e.g. AAPL not Apple). Max 10 chars.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"ticker\": \"NVDA\",\n  \"name\": \"NVIDIA Corporation\",\n  \"price\": 131.38,\n  \"currency\": \"USD\",\n  \"exchange\": \"NMS\"\n}"
+            },
+            {
+              "name": "404 - Ticker not found",
+              "status": "Not Found",
+              "code": 404,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/stocks/search?q=NVDA",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "stocks",
+                    "search"
+                  ],
+                  "query": [
+                    {
+                      "key": "q",
+                      "value": "NVDA"
+                    }
+                  ]
+                },
+                "description": "Resolves an exact ticker symbol. Must be exact (e.g. AAPL not Apple). Max 10 chars.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"Ticker not found\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Stock Portfolio  GET /api/stocks/portfolio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/stocks/portfolio",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "stocks",
+                "portfolio"
+              ]
+            },
+            "description": "Returns all stock holdings for the current user, ordered by ticker.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Holdings list",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/stocks/portfolio",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "stocks",
+                    "portfolio"
+                  ]
+                },
+                "description": "Returns all stock holdings for the current user, ordered by ticker.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "[\n  {\n    \"ticker\": \"AAPL\",\n    \"quantity\": 10.0,\n    \"avg_price\": 207.32,\n    \"currency\": \"USD\",\n    \"updated_at\": \"2026-07-08T14:23:00\"\n  },\n  {\n    \"ticker\": \"NVDA\",\n    \"quantity\": 3.0,\n    \"avg_price\": 128.5,\n    \"currency\": \"USD\",\n    \"updated_at\": \"2026-07-08T15:01:00\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Get Stock Orders  GET /api/stocks/orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/stocks/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "stocks",
+                "orders"
+              ]
+            },
+            "description": "Returns all stock orders for the current user, ordered by created_at descending.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Order history",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/stocks/orders",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "stocks",
+                    "orders"
+                  ]
+                },
+                "description": "Returns all stock orders for the current user, ordered by created_at descending.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "[\n  {\n    \"id\": 3,\n    \"ticker\": \"AAPL\",\n    \"quantity\": 5.0,\n    \"price\": 213.49,\n    \"total\": 1067.45,\n    \"currency\": \"USD\",\n    \"from_account\": \"FR7601234001001\",\n    \"status\": \"completed\",\n    \"created_at\": \"2026-07-08T14:23:00\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Buy Stock  POST /api/stocks/buy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/stocks/buy",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "stocks",
+                "buy"
+              ]
+            },
+            "description": "Purchases shares: fetches live price, debits account, upserts holdings, inserts order.\nFractional shares supported (minimum 0.001).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticker\": \"AAPL\",\n  \"quantity\": 5,\n  \"from_account\": \"FR7601234001001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Purchase completed (5 x AAPL)",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/stocks/buy",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "stocks",
+                    "buy"
+                  ]
+                },
+                "description": "Purchases shares: fetches live price, debits account, upserts holdings, inserts order.\nFractional shares supported (minimum 0.001).",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ticker\": \"AAPL\",\n  \"quantity\": 5,\n  \"from_account\": \"FR7601234001001\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"message\": \"Successfully purchased 5 share(s) of AAPL\",\n  \"order_id\": 3,\n  \"ticker\": \"AAPL\",\n  \"quantity\": 5.0,\n  \"price\": 213.49,\n  \"total\": 1067.45,\n  \"currency\": \"USD\",\n  \"from_account\": \"FR7601234001001\"\n}"
+            },
+            {
+              "name": "422 - Insufficient funds",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/stocks/buy",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "stocks",
+                    "buy"
+                  ]
+                },
+                "description": "Purchases shares: fetches live price, debits account, upserts holdings, inserts order.\nFractional shares supported (minimum 0.001).",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ticker\": \"AAPL\",\n  \"quantity\": 5,\n  \"from_account\": \"FR7601234001001\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"Insufficient funds\"\n}"
+            },
+            {
+              "name": "404 - Ticker not found",
+              "status": "Not Found",
+              "code": 404,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/stocks/buy",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "stocks",
+                    "buy"
+                  ]
+                },
+                "description": "Purchases shares: fetches live price, debits account, upserts holdings, inserts order.\nFractional shares supported (minimum 0.001).",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ticker\": \"AAPL\",\n  \"quantity\": 5,\n  \"from_account\": \"FR7601234001001\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"Ticker not found\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Buy Stock Fractional  POST /api/stocks/buy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/stocks/buy",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "stocks",
+                "buy"
+              ]
+            },
+            "description": "Fractional share purchase example (0.5 shares of NVDA).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticker\": \"NVDA\",\n  \"quantity\": 0.5,\n  \"from_account\": \"FR7601234001002\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Purchase completed (0.5 x NVDA)",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/stocks/buy",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "stocks",
+                    "buy"
+                  ]
+                },
+                "description": "Fractional share purchase example (0.5 shares of NVDA).",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ticker\": \"NVDA\",\n  \"quantity\": 0.5,\n  \"from_account\": \"FR7601234001002\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"message\": \"Successfully purchased 0.5 share(s) of NVDA\",\n  \"order_id\": 4,\n  \"ticker\": \"NVDA\",\n  \"quantity\": 0.5,\n  \"price\": 131.38,\n  \"total\": 65.69,\n  \"currency\": \"USD\",\n  \"from_account\": \"FR7601234001002\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Configuration",
+      "description": "LLM / chatbot configuration",
+      "item": [
+        {
+          "name": "Get LLM Config  GET /api/config",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/config",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "config"
+              ]
+            },
+            "description": "Returns the current LLM / chatbot configuration (URL, masked token, model, system prompt).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - LLM config",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/config",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "config"
+                  ]
+                },
+                "description": "Returns the current LLM / chatbot configuration (URL, masked token, model, system prompt).",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"llm_url\": \"https://api.openai.com\",\n  \"llm_token_masked\": \"sk-pro...k3Qz\",\n  \"llm_model\": \"gpt-4o\",\n  \"llm_system_prompt\": \"You are Aria, the Arcadia Finance AI assistant.\"\n}"
+            },
+            {
+              "name": "401 - Not authenticated",
+              "status": "Unauthorized",
+              "code": 401,
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/config",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "config"
+                  ]
+                },
+                "description": "Returns the current LLM / chatbot configuration (URL, masked token, model, system prompt).",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"Missing or invalid token\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update LLM Config  POST /api/config",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/config",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "config"
+              ]
+            },
+            "description": "Updates the LLM configuration used by the Aria chatbot. All fields are optional.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"llm_url\": \"https://api.openai.com\",\n  \"llm_token\": \"sk-proj-your-token-here\",\n  \"llm_model\": \"gpt-4o\",\n  \"llm_system_prompt\": \"You are Aria, the Arcadia Finance AI assistant.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Config updated",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/config",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "config"
+                  ]
+                },
+                "description": "Updates the LLM configuration used by the Aria chatbot. All fields are optional.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"llm_url\": \"https://api.openai.com\",\n  \"llm_token\": \"sk-proj-your-token-here\",\n  \"llm_model\": \"gpt-4o\",\n  \"llm_system_prompt\": \"You are Aria, the Arcadia Finance AI assistant.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"message\": \"Configuration updated\"\n}"
+            },
+            {
+              "name": "401 - Not authenticated",
+              "status": "Unauthorized",
+              "code": 401,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/config",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "config"
+                  ]
+                },
+                "description": "Updates the LLM configuration used by the Aria chatbot. All fields are optional.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"llm_url\": \"https://api.openai.com\",\n  \"llm_token\": \"sk-proj-your-token-here\",\n  \"llm_model\": \"gpt-4o\",\n  \"llm_system_prompt\": \"You are Aria, the Arcadia Finance AI assistant.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"Missing or invalid token\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chatbot",
+      "description": "Aria AI assistant (proxies to configured LLM)",
+      "item": [
+        {
+          "name": "Chat with Aria  POST /api/chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "chat"
+              ]
+            },
+            "description": "Sends a conversation to the configured LLM and returns Aria reply.\nThe system prompt is prepended automatically from stored configuration.\nSupported backends: Azure OpenAI, OpenAI, Ollama, LM Studio, vLLM.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is my current balance?\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Aria replies",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria reply.\nThe system prompt is prepended automatically from stored configuration.\nSupported backends: Azure OpenAI, OpenAI, Ollama, LM Studio, vLLM.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is my current balance?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"Hello! I am Aria, your Arcadia Finance assistant. Let me check your balance for you...\"\n}"
+            },
+            {
+              "name": "502 - LLM backend error",
+              "status": "Bad Gateway",
+              "code": 502,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria reply.\nThe system prompt is prepended automatically from stored configuration.\nSupported backends: Azure OpenAI, OpenAI, Ollama, LM Studio, vLLM.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is my current balance?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"LLM backend returned an error\"\n}"
+            },
+            {
+              "name": "504 - LLM request timed out",
+              "status": "Gateway Timeout",
+              "code": 504,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria reply.\nThe system prompt is prepended automatically from stored configuration.\nSupported backends: Azure OpenAI, OpenAI, Ollama, LM Studio, vLLM.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is my current balance?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"LLM request timed out (60s limit)\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
