@@ -1,0 +1,7 @@
+Flask==3.0.3
+Flask-CORS==4.0.1
+PyJWT==2.8.0
+PyMySQL==1.1.1
+mcp[cli]>=1.6.0
+yfinance>=0.2.62
+pandas>=2.0.0

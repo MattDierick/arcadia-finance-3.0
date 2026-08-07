@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stocks - Arcadia Finance</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg"/>
+  <link rel="stylesheet" href="/css/variables.css"/>
+  <link rel="stylesheet" href="/css/styles.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<nav class="navbar">
+  <a class="nav-logo" href="/"><img src="/assets/logo.svg" width="36" height="36" alt=""/>
+    <span class="nav-logo-text">Arcadia <span>Finance</span></span></a>
+  <div class="nav-links">
+    <a href="/dashboard.html" class="nav-link">Dashboard</a>
+    <a href="/stocks.html"    class="nav-link active">Stocks</a>
+    <a href="/config.html"    class="nav-link">Settings</a>
+  </div>
+  <div class="nav-actions">
+    <button class="theme-toggle" aria-label="Switch to light mode" title="Switch to light mode">
+      <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="icon-sun"  width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    </button>
+    <div class="user-pill">
+      <div class="user-avatar"><span class="user-initials">?</span></div>
+      <span class="text-sm user-fullname">Loading...</span>
+    </div>
+    <button id="logout-btn" class="btn btn-ghost btn-sm">Sign Out</button>
+  </div>
+</nav>
+<div class="page-wrapper">
+  <div class="dashboard-header"><div class="container"><div class="flex-between">
+    <div><h2>Stock Market</h2><p class="text-muted text-sm">Live quotes via Yahoo Finance MCP &middot; Buy shares from your accounts</p></div>
+    <div style="text-align:right;font-size:0.8rem;color:var(--text-muted)">Powered by <strong style="color:var(--f5-cyber-coral)">Yahoo Finance MCP</strong></div>
+  </div></div></div>
+  <div class="container section" style="padding-top:var(--space-lg)">
+    <div class="card mb-lg">
+      <div class="section-title mb-md">Search a Stock</div>
+      <form id="search-form" style="display:flex;gap:var(--space-sm);flex-wrap:wrap">
+        <input class="form-input" id="ticker-input" type="text" placeholder="Enter ticker symbol, e.g. AAPL, MSFT, TSLA..." style="flex:1;min-width:200px" autocomplete="off"/>
+        <button type="submit" class="btn btn-primary btn-sm">Search</button>
+      </form>
+      <p id="search-error" class="hidden mt-sm" style="color:var(--status-error);font-size:0.88rem"></p>
+      <div class="mt-md"><div class="text-sm text-muted mb-sm">Popular tickers:</div><div id="ticker-chips" class="ticker-chips"></div></div>
+    </div>
+    <div id="quote-loading" class="hidden" style="text-align:center;padding:32px">
+      <div class="spinner" style="margin:auto"></div><p class="text-muted mt-sm">Fetching quote...</p>
+    </div>
+    <div id="quote-section" class="hidden">
+      <div class="card mb-lg">
+        <div class="flex-between mb-md" style="flex-wrap:wrap;gap:var(--space-md)">
+          <div>
+            <div style="font-size:1.8rem;font-weight:800;font-family:var(--font-heading)" id="q-ticker">--</div>
+            <div class="text-muted text-sm" id="q-name">--</div>
+            <div class="text-muted" id="q-exchange" style="font-size:0.75rem"></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:2rem;font-weight:800;font-family:var(--font-heading)" id="q-price">--</div>
+            <div id="q-change" style="font-size:0.95rem;font-weight:600">--</div>
+          </div>
+        </div>
+        <div class="quote-metric-grid mb-md">
+          <div class="quote-metric"><div class="quote-metric-label">Volume</div><div class="quote-metric-value" id="q-volume">--</div></div>
+          <div class="quote-metric"><div class="quote-metric-label">Market Cap</div><div class="quote-metric-value" id="q-market-cap">--</div></div>
+          <div class="quote-metric"><div class="quote-metric-label">P/E Ratio</div><div class="quote-metric-value" id="q-pe">--</div></div>
+          <div class="quote-metric"><div class="quote-metric-label">52w High</div><div class="quote-metric-value" id="q-52high">--</div></div>
+          <div class="quote-metric"><div class="quote-metric-label">52w Low</div><div class="quote-metric-value" id="q-52low">--</div></div>
+          <div class="quote-metric"><div class="quote-metric-label">Sector</div><div class="quote-metric-value" id="q-sector">--</div></div>
+          <div class="quote-metric"><div class="quote-metric-label">Industry</div><div class="quote-metric-value" id="q-industry">--</div></div>
+        </div>
+        <div class="flex-between mb-md" style="flex-wrap:wrap;gap:var(--space-sm)">
+          <div class="section-title" style="font-size:1rem">Price History</div>
+          <div class="period-buttons">
+            <button class="period-btn" data-period="5d">5D</button>
+            <button class="period-btn active" data-period="1mo">1M</button>
+            <button class="period-btn" data-period="3mo">3M</button>
+            <button class="period-btn" data-period="6mo">6M</button>
+            <button class="period-btn" data-period="1y">1Y</button>
+            <button class="period-btn" data-period="2y">2Y</button>
+            <button class="period-btn" data-period="5y">5Y</button>
+          </div>
+        </div>
+        <div style="height:280px"><canvas id="price-chart"></canvas></div>
+      </div>
+      <div class="card mb-lg" style="border-color:rgba(228,0,43,0.25)">
+        <div class="section-title mb-md">Buy Shares</div>
+        <form id="buy-form">
+          <div class="grid-2">
+            <div class="form-group"><label class="form-label">Ticker Symbol</label><input class="form-input" id="buy-ticker" type="text" readonly style="cursor:default"/></div>
+            <div class="form-group"><label class="form-label">Number of Shares</label><input class="form-input" id="buy-qty" type="number" min="0.001" step="0.001" placeholder="e.g. 5"/></div>
+          </div>
+          <div class="form-group"><label class="form-label">Debit From Account</label><select class="form-input" id="buy-account"><option>Loading...</option></select></div>
+          <div class="card" style="background:rgba(228,0,43,0.05);border-color:rgba(228,0,43,0.2);padding:12px 16px;margin-bottom:var(--space-md)">
+            <div class="flex-between"><span class="text-sm text-muted">Estimated Total</span><span style="font-weight:700;font-size:1.1rem;font-family:var(--font-heading)" id="buy-total">--</span></div>
+          </div>
+          <div id="buy-result" class="mt-md"></div>
+          <button type="submit" class="btn btn-primary btn-full mt-md">Buy Shares</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mb-lg">
+      <div class="section-title mb-md">My Portfolio</div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Ticker</th><th>Shares</th><th>Avg Price</th><th>Currency</th><th>Updated</th></tr></thead>
+          <tbody id="portfolio-tbody"><tr><td colspan="5" style="text-align:center;padding:24px"><div class="spinner" style="margin:auto"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title mb-md">Order History</div>
+      <div class="table-wrapper" style="max-height:360px;overflow-y:auto">
+        <table>
+          <thead><tr><th>#</th><th>Ticker</th><th>Qty</th><th>Price</th><th>Total</th><th>Account</th><th>Date</th></tr></thead>
+          <tbody id="orders-tbody"><tr><td colspan="7" style="text-align:center;padding:24px"><div class="spinner" style="margin:auto"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<button id="chatbot-fab" title="Chat with Aria"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+<div id="chatbot-panel" class="hidden">
+  <div class="chatbot-header">
+    <div class="chatbot-avatar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg></div>
+    <div class="chatbot-header-info"><h4>Aria</h4><p>Arcadia Finance Assistant</p></div>
+    <button class="chatbot-close" id="chatbot-close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="chatbot-messages" id="chatbot-messages"></div>
+  <div class="chatbot-input-row"><input type="text" id="chatbot-input" placeholder="Ask Aria anything..."/><button id="chatbot-send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div>
+</div>
+<div id="toast-container"></div>
+<script src="/js/theme.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/stocks.js"></script>
+<script src="/js/chatbot.js"></script>
+</body>
+</html>
+

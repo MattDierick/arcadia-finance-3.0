@@ -1,0 +1,103 @@
+services:
+
+  # ─────────────────────────────────────────
+  # 1. DATABASE
+  # ─────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: arcadia-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret
+      MYSQL_DATABASE: arcadia
+      MYSQL_USER: arcadia
+      MYSQL_PASSWORD: arcadia_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "arcadia", "-parcadia_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─────────────────────────────────────────
+  # 2. TRANSFER MICROSERVICE
+  # ─────────────────────────────────────────
+  transfer-service:
+    build:
+      context: ./transfer-service
+      dockerfile: Dockerfile
+    container_name: arcadia-transfer
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_USER: arcadia
+      DB_PASS: arcadia_pass
+      DB_NAME: arcadia
+      SECRET_KEY: transfer-secret-2026
+      JWT_SECRET: arcadia-jwt-secret-2026
+    ports:
+      - "8081:8081"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────
+  # 3. STOCK MICROSERVICE
+  # ─────────────────────────────────────────
+  stock-service:
+    build:
+      context: ./stock-service
+      dockerfile: Dockerfile
+    container_name: arcadia-stock
+    restart: unless-stopped
+    environment:
+      SECRET_KEY: stock-secret-2026
+      JWT_SECRET: arcadia-jwt-secret-2026
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_USER: arcadia
+      DB_PASS: arcadia_pass
+      DB_NAME: arcadia
+    ports:
+      - "8082:8082"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────
+  # 4. MAIN APPLICATION
+  # ─────────────────────────────────────────
+  main-app:
+    build:
+      context: ./main-app
+      dockerfile: Dockerfile
+    container_name: arcadia-main
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_USER: arcadia
+      DB_PASS: arcadia_pass
+      DB_NAME: arcadia
+      SECRET_KEY: arcadia-super-secret-2026
+      JWT_SECRET: arcadia-jwt-secret-2026
+      TRANSFER_SERVICE_URL: http://transfer-service:8081
+      STOCK_SERVICE_URL: http://stock-service:8082
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      transfer-service:
+        condition: service_started
+      stock-service:
+        condition: service_started
+
+volumes:
+  db_data:

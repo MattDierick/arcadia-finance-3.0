@@ -1,0 +1,111 @@
+/* ============================================================
+   Arcadia Finance – F5 Design Tokens & CSS Variables
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  /* ── F5 Brand Palette ───────────────────────────────── */
+  --f5-red-primary:   #E4002B;
+  --f5-red-hover:     #C20024;
+  --f5-red-glow:      rgba(228, 0, 43, 0.35);
+  --f5-cyber-coral:   #FF2A4B;
+
+  /* ── Background Layers ──────────────────────────────── */
+  --bg-base:          #090D14;
+  --bg-primary:       #0D1117;
+  --bg-secondary:     #131A24;
+  --bg-card:          rgba(19, 26, 36, 0.85);
+  --bg-card-hover:    rgba(228, 0, 43, 0.06);
+  --bg-glass:         rgba(255, 255, 255, 0.04);
+  --bg-glass-border:  rgba(255, 255, 255, 0.08);
+  --bg-input:         rgba(255, 255, 255, 0.05);
+
+  /* ── Typography ─────────────────────────────────────── */
+  --text-primary:     #FFFFFF;
+  --text-secondary:   #94A3B8;
+  --text-muted:       #64748B;
+  --text-accent:      #FF2A4B;
+
+  /* ── Status ─────────────────────────────────────────── */
+  --status-success:   #10B981;
+  --status-warning:   #F59E0B;
+  --status-error:     #EF4444;
+  --status-info:      #3B82F6;
+
+  /* ── Borders ────────────────────────────────────────── */
+  --border-subtle:    rgba(255, 255, 255, 0.06);
+  --border-card:      rgba(255, 255, 255, 0.10);
+  --border-accent:    rgba(228, 0, 43, 0.40);
+
+  /* ── Gradients ──────────────────────────────────────── */
+  --grad-brand:       linear-gradient(135deg, #E4002B 0%, #FF2A4B 100%);
+  --grad-dark:        linear-gradient(135deg, #0D1117 0%, #131A24 100%);
+  --grad-card:        linear-gradient(135deg, rgba(228,0,43,0.08) 0%, rgba(19,26,36,0.9) 100%);
+  --grad-text:        linear-gradient(135deg, #FF2A4B 0%, #E4002B 60%, #FF6B6B 100%);
+  --grad-hero:        linear-gradient(135deg, #090D14 0%, #1a0508 40%, #0D1117 100%);
+
+  /* ── Shadows ────────────────────────────────────────── */
+  --shadow-card:      0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-glow:      0 0 32px rgba(228, 0, 43, 0.25);
+  --shadow-btn:       0 4px 16px rgba(228, 0, 43, 0.4);
+
+  /* ── Spacing ────────────────────────────────────────── */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  40px;
+  --space-2xl: 64px;
+
+  /* ── Radii ──────────────────────────────────────────── */
+  --radius-sm:  6px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  24px;
+  --radius-full: 9999px;
+
+  /* ── Transitions ─────────────────────────────────────── */
+  --transition: all 0.2s ease;
+  --transition-slow: all 0.4s ease;
+
+  /* ── Typography Scale ───────────────────────────────── */
+  --font-heading: 'Outfit', sans-serif;
+  --font-body:    'Inter', sans-serif;
+}
+
+/* ============================================================
+   Light Mode Overrides  (activated via data-theme="light" on <html>)
+   ============================================================ */
+[data-theme="light"] {
+  /* ── Background Layers ──────────────────────────────── */
+  --bg-base:          #F0F4F8;
+  --bg-primary:       #FFFFFF;
+  --bg-secondary:     #F8FAFC;
+  --bg-card:          rgba(255, 255, 255, 0.95);
+  --bg-card-hover:    rgba(228, 0, 43, 0.04);
+  --bg-glass:         rgba(0, 0, 0, 0.03);
+  --bg-glass-border:  rgba(0, 0, 0, 0.08);
+  --bg-input:         rgba(0, 0, 0, 0.04);
+
+  /* ── Typography ─────────────────────────────────────── */
+  --text-primary:     #0F172A;
+  --text-secondary:   #475569;
+  --text-muted:       #94A3B8;
+  --text-accent:      #E4002B;
+
+  /* ── Borders ────────────────────────────────────────── */
+  --border-subtle:    rgba(0, 0, 0, 0.07);
+  --border-card:      rgba(0, 0, 0, 0.10);
+  --border-accent:    rgba(228, 0, 43, 0.35);
+
+  /* ── Gradients ──────────────────────────────────────── */
+  --grad-dark:        linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
+  --grad-card:        linear-gradient(135deg, rgba(228,0,43,0.05) 0%, rgba(255,255,255,0.95) 100%);
+  --grad-hero:        linear-gradient(135deg, #F0F4F8 0%, #fff0f2 40%, #FFFFFF 100%);
+
+  /* ── Shadows ────────────────────────────────────────── */
+  --shadow-card:      0 4px 24px rgba(0, 0, 0, 0.08);
+  --shadow-glow:      0 0 32px rgba(228, 0, 43, 0.15);
+  --shadow-btn:       0 4px 16px rgba(228, 0, 43, 0.30);
+}

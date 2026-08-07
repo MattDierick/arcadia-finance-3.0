@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Arcadia Finance – Smart Banking for the Future</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg"/>
+  <link rel="stylesheet" href="/css/variables.css"/>
+  <link rel="stylesheet" href="/css/styles.css"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <a class="nav-logo" href="/">
+    <img src="/assets/logo.svg" width="36" height="36" alt="Arcadia Logo"/>
+    <span class="nav-logo-text">Arcadia <span>Finance</span></span>
+  </a>
+  <div class="nav-links">
+    <a href="#features" class="nav-link">Features</a>
+    <a href="#about"    class="nav-link">About</a>
+    <a href="#login"    class="nav-link">Sign In</a>
+  </div>
+  <div class="nav-actions">
+    <button class="theme-toggle" aria-label="Switch to light mode" title="Switch to light mode">
+      <!-- Moon: shown in dark mode -->
+      <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <!-- Sun: shown in light mode -->
+      <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    </button>
+    <a href="#login" class="btn btn-primary btn-sm">Get Started</a>
+  </div>
+</nav>
+
+<div class="page-wrapper">
+<section class="hero" id="home">
+  <div class="hero-bg-glow"></div>
+  <div class="hero-bg-glow-2"></div>
+  <div class="hero-grid-overlay"></div>
+  <div class="container" style="display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;width:100%">
+    <div class="hero-content">
+      <div class="hero-eyebrow">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        Next-Generation Digital Banking
+      </div>
+      <h1 class="hero-title">Banking that works<br/><span class="gradient-text">as hard as you do</span></h1>
+      <p class="hero-subtitle">Arcadia Finance gives you real-time insights, instant transfers, and AI-powered financial guidance — all in one secure platform.</p>
+      <div class="flex gap-md" style="flex-wrap:wrap">
+        <a href="#login" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Access My Account
+        </a>
+        <a href="#features" class="btn btn-ghost">Discover Features</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><span class="hero-stat-value gradient-text">€2.4B+</span><span class="hero-stat-label">Assets Managed</span></div>
+        <div class="hero-stat"><span class="hero-stat-value gradient-text">180K+</span><span class="hero-stat-label">Active Clients</span></div>
+        <div class="hero-stat"><span class="hero-stat-value gradient-text">99.9%</span><span class="hero-stat-label">Uptime SLA</span></div>
+      </div>
+    </div>
+    <div id="login" style="display:flex;justify-content:flex-end">
+      <div class="login-card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+          <img src="/assets/logo.svg" width="42" height="42" alt=""/>
+          <div>
+            <div class="login-title" style="margin-bottom:0">Welcome back</div>
+            <div class="login-subtitle" style="margin-bottom:0">Sign in to Arcadia Finance</div>
+          </div>
+        </div>
+        <form id="login-form" autocomplete="on">
+          <div class="form-group">
+            <label class="form-label" for="username">Username</label>
+            <input class="form-input" id="username" name="username" type="text" placeholder="Enter your username" autocomplete="username"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="password">Password</label>
+            <input class="form-input" id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password"/>
+          </div>
+          <div id="login-error" class="hidden" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 14px;font-size:0.85rem;color:var(--status-error);margin-bottom:16px"></div>
+          <button type="submit" class="btn btn-primary btn-full">
+            <span id="login-btn-text">Sign In</span>
+            <span id="login-btn-spinner" class="spinner hidden"></span>
+          </button>
+        </form>
+        <div class="divider"></div>
+        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;text-align:center">Demo accounts – click to fill</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-ghost btn-sm demo-user-btn" data-user="alice"  data-pass="alice123">👩 Alice Moreau</button>
+          <button class="btn btn-ghost btn-sm demo-user-btn" data-user="thomas" data-pass="thomas123">👨 Thomas Lefebvre</button>
+          <button class="btn btn-ghost btn-sm demo-user-btn" data-user="sophie" data-pass="sophie123">👩 Sophie Bernard</button>
+          <button class="btn btn-ghost btn-sm demo-user-btn" data-user="lucas"  data-pass="lucas123">👨 Lucas Dupont</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features" style="background:var(--bg-primary)">
+  <div class="container">
+    <div style="text-align:center;margin-bottom:var(--space-2xl)">
+      <div class="hero-eyebrow" style="justify-content:center;margin-bottom:16px">Platform Features</div>
+      <h2>Everything to <span class="gradient-text">manage your wealth</span></h2>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card"><div class="feature-icon" style="font-size:1.5rem">&#128179;</div><div class="feature-title">Multi-Account</div><div class="feature-desc">Checking, savings, and investment in one dashboard with real-time balances.</div></div>
+      <div class="feature-card"><div class="feature-icon" style="font-size:1.5rem">&#128176;</div><div class="feature-title">Instant Transfers</div><div class="feature-desc">Send money to any Arcadia account instantly with full transfer history.</div></div>
+      <div class="feature-card"><div class="feature-icon" style="font-size:1.5rem">&#129302;</div><div class="feature-title">AI Assistant</div><div class="feature-desc">Chat with Aria for personalized advice and instant account support.</div></div>
+      <div class="feature-card"><div class="feature-icon" style="font-size:1.5rem">&#128200;</div><div class="feature-title">Portfolio Analytics</div><div class="feature-desc">Visual charts to understand your financial health and performance.</div></div>
+      <div class="feature-card"><div class="feature-icon" style="font-size:1.5rem">&#128274;</div><div class="feature-title">Bank-Grade Security</div><div class="feature-desc">Enterprise encryption protects your assets 24/7.</div></div>
+      <div class="feature-card"><div class="feature-icon" style="font-size:1.5rem">&#128202;</div><div class="feature-title">Wealth Insights</div><div class="feature-desc">Recommendations tailored to your financial profile.</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features" style="background:var(--bg-primary)">
+  <div class="container">
+    <div style="text-align:center;margin-bottom:var(--space-2xl)">
+      <div class="hero-eyebrow" style="justify-content:center;margin-bottom:16px">Platform Features</div>
+      <h2>Everything to <span class="gradient-text">manage your wealth</span></h2>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card"><div class="feature-icon" style="font-size:1.5rem">&#128179;</div><div class="feature-title">Multi-Account</div><div class="feature-desc">Checking, savings, and investment in one dashboard with real-time balances.</div></div>
+      <div class="feature-card"><div class="feature-icon" style="font-size:1.5rem">&#128176;</div><div class="feature-title">Instant Transfers</div><div class="feature-desc">Send money to any Arcadia account instantly with full transfer history.</div></div>
+      <div class="feature-card"><div class="feature-icon" style="font-size:1.5rem">&#129302;</div><div class="feature-title">AI Assistant</div><div class="feature-desc">Chat with Aria for personalized advice and instant account support.</div></div>
+      <div class="feature-card"><div class="feature-icon" style="font-size:1.5rem">&#128200;</div><div class="feature-title">Portfolio Analytics</div><div class="feature-desc">Visual charts to understand your financial health and performance.</div></div>
+      <div class="feature-card"><div class="feature-icon" style="font-size:1.5rem">&#128274;</div><div class="feature-title">Bank-Grade Security</div><div class="feature-desc">Enterprise encryption protects your assets 24/7.</div></div>
+      <div class="feature-card"><div class="feature-icon" style="font-size:1.5rem">&#128202;</div><div class="feature-title">Wealth Insights</div><div class="feature-desc">Recommendations tailored to your financial profile.</div></div>
+    </div>
+  </div>
+</section>
+<section class="section" id="about" style="background:var(--bg-base)">
+  <div class="container">
+    <div style="background:var(--grad-card);border:1px solid var(--border-accent);border-radius:var(--radius-xl);padding:var(--space-2xl);text-align:center">
+      <div class="hero-eyebrow" style="justify-content:center;margin-bottom:16px">About</div>
+      <h2 style="margin-bottom:16px">Your trusted <span class="gradient-text">partner</span> since 2004</h2>
+      <p style="color:var(--text-secondary);max-width:640px;margin:0 auto 32px">Over 20 years helping individuals and businesses grow their wealth with world-class security.</p>
+      <div style="display:flex;gap:40px;justify-content:center;flex-wrap:wrap">
+        <div><div style="font-family:var(--font-heading);font-size:2rem;font-weight:800;color:var(--f5-cyber-coral)">20+</div><div style="color:var(--text-secondary);font-size:0.85rem">Years</div></div>
+        <div><div style="font-family:var(--font-heading);font-size:2rem;font-weight:800;color:var(--f5-cyber-coral)">48</div><div style="color:var(--text-secondary);font-size:0.85rem">Countries</div></div>
+        <div><div style="font-family:var(--font-heading);font-size:2rem;font-weight:800;color:var(--f5-cyber-coral)">AAA</div><div style="color:var(--text-secondary);font-size:0.85rem">Rating</div></div>
+        <div><div style="font-family:var(--font-heading);font-size:2rem;font-weight:800;color:var(--f5-cyber-coral)">4.9&#9733;</div><div style="color:var(--text-secondary);font-size:0.85rem">Satisfaction</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+<footer>
+  <div class="container">
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px">
+      <img src="/assets/logo.svg" width="24" height="24" alt=""/>
+      <span style="font-family:var(--font-heading);font-weight:700;color:var(--text-primary)">Arcadia Finance</span>
+    </div>
+    <p>&copy; 2026 Arcadia Finance S.A. <span style="color:var(--f5-red-primary)">Demo environment.</span></p>
+  </div>
+</footer>
+</div><!-- end page-wrapper -->
+<button id="chatbot-fab" title="Chat with Aria">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+</button>
+<div id="chatbot-panel" class="hidden">
+  <div class="chatbot-header">
+    <div class="chatbot-avatar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg></div>
+    <div class="chatbot-header-info"><h4>Aria</h4><p>Arcadia Finance Assistant</p></div>
+    <button class="chatbot-close" id="chatbot-close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="chatbot-messages" id="chatbot-messages"></div>
+  <div class="chatbot-input-row">
+    <input type="text" id="chatbot-input" placeholder="Ask Aria anything..."/>
+    <button id="chatbot-send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="/js/theme.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/home.js"></script>
+<script src="/js/chatbot.js"></script>
+</body>
+</html>

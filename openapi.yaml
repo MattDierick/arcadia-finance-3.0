@@ -1,0 +1,1429 @@
+openapi: 3.0.3
+
+info:
+  title: Arcadia Finance API
+  version: "1.0.0"
+  description: |
+    REST API for the Arcadia Finance demo banking application.
+
+    WARNING: This application is intentionally vulnerable (SQL injection,
+    plain-text passwords, verbose errors) for F5 WAF/security demonstration
+    purposes. NEVER deploy in production.
+
+    ## Authentication
+
+    All private endpoints require a valid JWT Bearer token.
+    Tokens are issued by the app itself (HS256, 8-hour expiry).
+
+    Workflow:
+      1. POST /api/token  with username + password -> receive access_token
+      2. Every request:   Authorization: Bearer <access_token>
+
+  contact:
+    name: Arcadia Finance Demo
+  license:
+    name: Internal Demo - Not for production use
+
+servers:
+  - url: http://localhost:8080
+    description: Local Docker Compose stack
+
+tags:
+  - name: Authentication
+    description: Obtain and invalidate JWT tokens
+  - name: Users
+    description: Current user profile and user list
+  - name: Accounts
+    description: Bank accounts belonging to the authenticated user
+  - name: Transfers
+    description: Money transfers between accounts
+  - name: Stocks
+    description: >
+      Live stock quotes, price history and share purchases via the Yahoo Finance MCP
+      microservice (stock-service, port 8082). All routes are proxied through main-app
+      and require a valid JWT. Data is fetched in real time from Yahoo Finance using
+      the yfinance library wrapped in a stdio MCP server.
+  - name: Configuration
+    description: LLM / chatbot configuration
+  - name: Chatbot
+    description: Aria AI assistant (proxies to configured LLM)
+
+# ------------------------------------------------------------------------------
+# SECURITY SCHEMES & REUSABLE SCHEMAS
+# ------------------------------------------------------------------------------
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by POST /api/token or POST /api/login. Valid 8 hours.
+
+  schemas:
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: alice
+        password:
+          type: string
+          format: password
+          example: alice123
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          example: bearer
+        expires_in:
+          type: integer
+          description: Token lifetime in seconds
+          example: 28800
+        user:
+          $ref: "#/components/schemas/User"
+
+    LoginResponse:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          properties:
+            access_token:
+              type: string
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            token_type:
+              type: string
+              example: bearer
+            expires_in:
+              type: integer
+              example: 28800
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Alice
+        surname:
+          type: string
+          example: Moreau
+        email:
+          type: string
+          format: email
+          example: alice.moreau@arcadiafinance.com
+        phone:
+          type: string
+          example: "+33 6 12 34 56 78"
+        username:
+          type: string
+          example: alice
+
+    Account:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        account_number:
+          type: string
+          example: FR7601234001001
+        type:
+          type: string
+          enum: [checking, savings, investment]
+          example: checking
+        balance:
+          type: number
+          format: float
+          example: 12450.75
+        currency:
+          type: string
+          example: EUR
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-01-15T09:00:00"
+
+    TransferRequest:
+      type: object
+      required: [from_account, to_account, amount]
+      properties:
+        from_account:
+          type: string
+          description: Source account number
+          example: FR7601234001001
+        to_account:
+          type: string
+          description: Destination account number
+          example: FR7601234002001
+        amount:
+          type: number
+          format: float
+          minimum: 0.01
+          example: 250.00
+        note:
+          type: string
+          description: Optional transfer memo
+          example: "Invoice #42"
+
+    TransferResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Transfer completed successfully
+        transfer_id:
+          type: integer
+          example: 14
+        from_account:
+          type: string
+          example: FR7601234001001
+        to_account:
+          type: string
+          example: FR7601234002001
+        amount:
+          type: number
+          format: float
+          example: 250.00
+        note:
+          type: string
+          example: "Invoice #42"
+
+    TransferRecord:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 7
+        from_account:
+          type: string
+          example: FR7601234001001
+        to_account:
+          type: string
+          example: FR7601234002001
+        amount:
+          type: number
+          format: float
+          example: 500.00
+        note:
+          type: string
+          example: Dinner split
+        status:
+          type: string
+          enum: [completed, pending, failed]
+          example: completed
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-01T10:30:00"
+
+    ConfigResponse:
+      type: object
+      properties:
+        llm_url:
+          type: string
+          example: https://api.openai.com
+        llm_token_masked:
+          type: string
+          description: Masked token (first 6 + last 4 chars)
+          example: sk-pro...k3Qz
+        llm_model:
+          type: string
+          example: gpt-4o
+        chatbot_system_prompt:
+          type: string
+          example: You are Aria, a helpful Arcadia Finance virtual assistant.
+
+    ConfigRequest:
+      type: object
+      description: >
+        All keys optional. Omitting llm_token keeps the stored token unchanged.
+      properties:
+        llm_url:
+          type: string
+          description: >
+            Base URL (e.g. https://api.openai.com -- /v1/chat/completions appended
+            automatically) OR full Azure OpenAI endpoint with deployment path and
+            ?api-version= query param (used as-is).
+          example: https://dierick-openai.openai.azure.com/openai/deployments/gpt-4o-mini/chat/completions?api-version=2025-01-01-preview
+        llm_token:
+          type: string
+          format: password
+          description: >
+            API key. Sent as api-key header for Azure OpenAI (openai.azure.com)
+            or Authorization: Bearer for all other providers.
+          example: sk-...
+        llm_model:
+          type: string
+          example: gpt-4o
+        chatbot_system_prompt:
+          type: string
+          example: You are Aria, a helpful Arcadia Finance virtual assistant.
+
+    ChatRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          description: Conversation history (system prompt prepended by server)
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              content:
+                type: string
+                example: What is my current balance?
+
+    ChatResponse:
+      type: object
+      properties:
+        reply:
+          type: string
+          example: Your checking account balance is 12450.75 EUR.
+        configured:
+          type: boolean
+          example: true
+        error:
+          type: string
+          description: Present only when the LLM call failed
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Not authenticated
+        sql:
+          type: string
+          description: Intentional SQLi surface -- raw SQL returned in error responses
+          example: "SELECT * FROM users WHERE username = '' OR '1'='1' --"
+
+    StockQuote:
+      type: object
+      description: Normalised real-time quote returned by the stock-service.
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+        name:
+          type: string
+          example: Apple Inc.
+        price:
+          type: number
+          format: float
+          example: 213.49
+        currency:
+          type: string
+          example: USD
+        exchange:
+          type: string
+          example: NMS
+        change:
+          type: number
+          format: float
+          description: Price change since previous close
+          example: 1.23
+        change_pct:
+          type: number
+          format: float
+          description: Percentage change since previous close
+          example: 0.58
+        market_cap:
+          type: integer
+          nullable: true
+          example: 3280000000000
+        pe_ratio:
+          type: number
+          format: float
+          nullable: true
+          example: 33.4
+        volume:
+          type: integer
+          nullable: true
+          example: 52341200
+        day_high:
+          type: number
+          format: float
+          nullable: true
+          example: 215.10
+        day_low:
+          type: number
+          format: float
+          nullable: true
+          example: 211.85
+        fifty_two_week_high:
+          type: number
+          format: float
+          nullable: true
+          example: 237.23
+        fifty_two_week_low:
+          type: number
+          format: float
+          nullable: true
+          example: 164.08
+        sector:
+          type: string
+          nullable: true
+          example: Technology
+        industry:
+          type: string
+          nullable: true
+          example: Consumer Electronics
+
+    StockHistoryResponse:
+      type: object
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+        period:
+          type: string
+          example: 1mo
+        interval:
+          type: string
+          example: 1d
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OHLCVRecord"
+
+    OHLCVRecord:
+      type: object
+      description: One OHLCV candle from the price history.
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2026-06-15"
+        open:
+          type: number
+          format: float
+          example: 210.50
+        high:
+          type: number
+          format: float
+          example: 214.30
+        low:
+          type: number
+          format: float
+          example: 209.80
+        close:
+          type: number
+          format: float
+          example: 213.49
+        volume:
+          type: integer
+          example: 52341200
+
+    StockHolding:
+      type: object
+      description: One position in the authenticated user's portfolio.
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+        quantity:
+          type: number
+          format: float
+          example: 10.0
+        avg_price:
+          type: number
+          format: float
+          description: Weighted average purchase price
+          example: 207.32
+        currency:
+          type: string
+          example: USD
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-08T14:23:00"
+
+    StockOrder:
+      type: object
+      description: An immutable stock purchase record.
+      properties:
+        id:
+          type: integer
+          example: 3
+        ticker:
+          type: string
+          example: AAPL
+        quantity:
+          type: number
+          format: float
+          example: 5.0
+        price:
+          type: number
+          format: float
+          description: Execution price per share at time of purchase
+          example: 213.49
+        total:
+          type: number
+          format: float
+          description: Total amount debited (quantity × price)
+          example: 1067.45
+        currency:
+          type: string
+          example: USD
+        from_account:
+          type: string
+          example: FR7601234001001
+        status:
+          type: string
+          enum: [completed, failed]
+          example: completed
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-08T14:23:00"
+
+    StockBuyRequest:
+      type: object
+      required: [ticker, quantity, from_account]
+      properties:
+        ticker:
+          type: string
+          description: Stock ticker symbol (case-insensitive, normalised to upper-case)
+          example: AAPL
+        quantity:
+          type: number
+          format: float
+          minimum: 0.001
+          description: Number of shares to purchase (fractional shares supported)
+          example: 5
+        from_account:
+          type: string
+          description: Bank account number to debit
+          example: FR7601234001001
+
+    StockBuyResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Successfully purchased 5 share(s) of AAPL
+        order_id:
+          type: integer
+          example: 3
+        ticker:
+          type: string
+          example: AAPL
+        quantity:
+          type: number
+          format: float
+          example: 5.0
+        price:
+          type: number
+          format: float
+          description: Live price fetched at execution time
+          example: 213.49
+        total:
+          type: number
+          format: float
+          example: 1067.45
+        currency:
+          type: string
+          example: USD
+        from_account:
+          type: string
+          example: FR7601234001001
+
+# ------------------------------------------------------------------------------
+# PATHS
+# ------------------------------------------------------------------------------
+paths:
+
+  /api/token:
+    post:
+      tags: [Authentication]
+      summary: Obtain a JWT (API clients -- Postman, curl)
+      description: |
+        Exchange username + password for a signed JWT Bearer token.
+        Does NOT set a session cookie (use POST /api/login for the browser).
+        NOTE: Intentionally vulnerable to SQL injection (F5 demo surface).
+      operationId: getToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            examples:
+              alice:
+                summary: Alice (demo user)
+                value: {username: alice, password: alice123}
+              sqli:
+                summary: SQL injection bypass
+                value: {username: "' OR '1'='1' --", password: x}
+      responses:
+        "200":
+          description: JWT issued successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Database error (verbose SQL returned -- intentional)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/login:
+    post:
+      tags: [Authentication]
+      summary: Browser login (session cookie + JWT)
+      description: |
+        Authenticates the user, sets a Flask session cookie (for browser SPA
+        navigation), and also returns a JWT in the response body.
+        NOTE: Intentionally vulnerable to SQL injection (F5 demo surface).
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            examples:
+              thomas:
+                summary: Thomas (demo user)
+                value: {username: thomas, password: thomas123}
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Database error (verbose SQL returned -- intentional)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/logout:
+    post:
+      tags: [Authentication]
+      summary: Invalidate the current session
+      description: >
+        Clears the server-side Flask session cookie.
+        The client must also remove the JWT from localStorage.
+      operationId: logout
+      responses:
+        "200":
+          description: Session cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged out
+
+  /api/me:
+    get:
+      tags: [Users]
+      summary: Get the authenticated user profile
+      operationId: getMe
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/users:
+    get:
+      tags: [Users]
+      summary: List all users
+      description: Returns the full user directory.
+      operationId: listUsers
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Array of all users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/users/{user_id}:
+    get:
+      tags: [Users]
+      summary: Get a user profile by ID
+      description: |
+        Returns the full profile of the user identified by `{user_id}`.
+
+        ⚠️  **INTENTIONALLY VULNERABLE TO BOLA (OWASP API1:2023 – Broken Object Level Authorization)**
+
+        The endpoint only checks that the caller is *authenticated* (valid JWT).
+        It does **not** verify that the requested `user_id` matches the authenticated
+        user's own ID.  Any valid token holder can therefore enumerate all user
+        profiles — including **plain-text passwords** — by iterating the integer ID:
+
+        ```
+        GET /api/users/1   → Alice's profile + password
+        GET /api/users/2   → Thomas's profile + password
+        GET /api/users/3   → Sophie's profile + password
+        GET /api/users/4   → Lucas's profile + password
+        ```
+
+        This is the classic BOLA/IDOR pattern demonstrated for F5 WAF/API security
+        demos. A secure implementation would return 403 when `user_id ≠ caller_id`.
+      operationId: getUserById
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: Numeric ID of the target user (BOLA — no ownership check performed)
+          schema:
+            type: integer
+            example: 2
+      responses:
+        "200":
+          description: User profile (including plain-text password — intentional vuln)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/User"
+                  - type: object
+                    properties:
+                      password:
+                        type: string
+                        description: Plain-text password exposed via BOLA
+                        example: thomas123
+              examples:
+                alice:
+                  summary: Alice (id=1)
+                  value:
+                    id: 1
+                    name: Alice
+                    surname: Moreau
+                    email: alice.moreau@arcadiafinance.com
+                    phone: "+33 6 12 34 56 78"
+                    username: alice
+                    password: alice123
+                thomas:
+                  summary: Thomas (id=2)
+                  value:
+                    id: 2
+                    name: Thomas
+                    surname: Lefebvre
+                    email: thomas.lefebvre@arcadiafinance.com
+                    phone: "+33 6 23 45 67 89"
+                    username: thomas
+                    password: thomas123
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/accounts:
+    get:
+      tags: [Accounts]
+      summary: List bank accounts for the authenticated user
+      operationId: listAccounts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          description: Override the user whose accounts are returned. Defaults to the authenticated user.
+          schema:
+            type: integer
+            example: 2
+      responses:
+        "200":
+          description: List of accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Account"
+              example:
+                - id: 1
+                  account_number: FR7601234001001
+                  type: checking
+                  balance: 12450.75
+                  currency: EUR
+                  created_at: "2026-01-15T09:00:00"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/transfer:
+    post:
+      tags: [Transfers]
+      summary: Execute a money transfer
+      description: >
+        Debits the source account and credits the destination account atomically.
+        Proxied internally to the transfer-service (port 8081).
+      operationId: createTransfer
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferRequest"
+            example:
+              from_account: FR7601234001001
+              to_account: FR7601234002001
+              amount: 250.00
+              note: "Invoice #42"
+      responses:
+        "200":
+          description: Transfer completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransferResponse"
+        "400":
+          description: Missing or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Source or destination account not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Insufficient funds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Database error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Transfer service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/transfers:
+    get:
+      tags: [Transfers]
+      summary: Get transfer history for an account
+      description: |
+        Returns all transfers where the given account is sender or recipient,
+        ordered by date descending (last 50 records).
+        Proxied internally to the transfer-service (port 8081).
+        NOTE: Intentionally vulnerable to SQL injection on the account param.
+      operationId: listTransfers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: account
+          in: query
+          required: true
+          description: Account number to retrieve history for
+          schema:
+            type: string
+            example: FR7601234001001
+      responses:
+        "200":
+          description: List of transfer records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TransferRecord"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Database error (verbose SQL returned -- intentional)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Transfer service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/config:
+    get:
+      tags: [Configuration]
+      summary: Get current LLM configuration
+      description: >
+        Returns stored LLM settings. The API token is masked in the response
+        (first 6 + last 4 characters).
+      operationId: getConfig
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Current configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      tags: [Configuration]
+      summary: Save LLM configuration
+      description: |
+        Upserts one or more LLM configuration keys. Only keys present in the
+        request body are updated; omitted keys are left unchanged.
+        NOTE: The token is stored in plain text in app_config -- intentional vulnerability.
+      operationId: saveConfig
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigRequest"
+            examples:
+              azure:
+                summary: Azure OpenAI full endpoint
+                value:
+                  llm_url: https://dierick-openai.openai.azure.com/openai/deployments/gpt-4o-mini/chat/completions?api-version=2025-01-01-preview
+                  llm_token: your-azure-api-key
+                  llm_model: gpt-4o-mini
+                  chatbot_system_prompt: You are Aria, a helpful Arcadia Finance virtual assistant.
+              openai:
+                summary: Standard OpenAI base URL
+                value:
+                  llm_url: https://api.openai.com
+                  llm_token: sk-...
+                  llm_model: gpt-4o
+      responses:
+        "200":
+          description: Configuration saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Configuration saved
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/chat:
+    post:
+      tags: [Chatbot]
+      summary: Chat with Aria (LLM proxy)
+      description: |
+        Sends a conversation to the configured LLM and returns Aria reply.
+        The system prompt is prepended automatically from stored configuration.
+        Supported: Azure OpenAI, OpenAI, Ollama, LM Studio, vLLM.
+      operationId: chat
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+            example:
+              messages:
+                - role: user
+                  content: What is my current balance?
+      responses:
+        "200":
+          description: LLM reply (or not-configured notice if LLM not set up)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: LLM backend returned an error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "504":
+          description: LLM request timed out (60 s limit)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Stocks ──────────────────────────────────────────────────────────────────
+  # All routes are proxied by main-app (8080) → stock-service (8082).
+  # stock-service wraps yahoo-finance-mcp stdio server (MIT, Alex2Yang97).
+
+  /api/stocks/quote:
+    get:
+      tags: [Stocks]
+      summary: Get a live stock quote
+      description: |
+        Returns a real-time normalised quote for the requested ticker.
+        Powered by the `get_stock_info` MCP tool (yfinance). Fields are
+        normalised defensively: `currentPrice` / `regularMarketPrice` /
+        `previousClose` for price; `shortName` / `longName` for name.
+      operationId: getStockQuote
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: ticker
+          in: query
+          required: true
+          description: Stock ticker symbol (e.g. AAPL, MSFT, NVDA)
+          schema:
+            type: string
+            example: AAPL
+      responses:
+        "200":
+          description: Live quote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQuote"
+              example:
+                ticker: AAPL
+                name: Apple Inc.
+                price: 213.49
+                currency: USD
+                exchange: NMS
+                change: 1.23
+                change_pct: 0.58
+                market_cap: 3280000000000
+                pe_ratio: 33.4
+                volume: 52341200
+                day_high: 215.10
+                day_low: 211.85
+                fifty_two_week_high: 237.23
+                fifty_two_week_low: 164.08
+                sector: Technology
+                industry: Consumer Electronics
+        "400":
+          description: Missing ticker parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Ticker not found on Yahoo Finance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: MCP / Yahoo Finance error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: stock-service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+
+  /api/stocks/history:
+    get:
+      tags: [Stocks]
+      summary: Get historical OHLCV price data
+      description: |
+        Returns historical candles for a ticker. Powered by the
+        `get_historical_stock_prices` MCP tool. Both `period` and `interval`
+        are validated server-side against the yfinance allowed value sets.
+      operationId: getStockHistory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: ticker
+          in: query
+          required: true
+          schema:
+            type: string
+            example: AAPL
+        - name: period
+          in: query
+          required: false
+          description: "Lookback window. Allowed: 1d 5d 1mo 3mo 6mo 1y 2y 5y 10y ytd max"
+          schema:
+            type: string
+            default: 1mo
+            enum: [1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max]
+            example: 1mo
+        - name: interval
+          in: query
+          required: false
+          description: "Candle interval. Allowed: 1m 2m 5m 15m 30m 60m 90m 1h 1d 5d 1wk 1mo 3mo"
+          schema:
+            type: string
+            default: 1d
+            enum: [1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo]
+            example: 1d
+      responses:
+        "200":
+          description: OHLCV records array
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockHistoryResponse"
+        "400":
+          description: Missing or invalid parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Ticker not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: stock-service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/stocks/search:
+    get:
+      tags: [Stocks]
+      summary: Validate / search a ticker symbol
+      description: |
+        Resolves the query string as a ticker via `get_stock_info`.
+        Returns a short summary on success, 404 if not found.
+
+        > **Note:** Yahoo Finance MCP has no company-name fuzzy search.
+        > The query must be an exact ticker symbol (e.g. `AAPL`, not `Apple`).
+      operationId: searchStock
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Ticker symbol to resolve (max 10 characters)
+          schema:
+            type: string
+            maxLength: 10
+            example: NVDA
+      responses:
+        "200":
+          description: Ticker resolved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ticker:   { type: string, example: NVDA }
+                  name:     { type: string, example: NVIDIA Corporation }
+                  price:    { type: number, format: float, example: 131.38 }
+                  currency: { type: string, example: USD }
+                  exchange: { type: string, example: NMS }
+        "400":
+          description: Missing or oversized query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Ticker not found on Yahoo Finance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: stock-service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+
+  /api/stocks/portfolio:
+    get:
+      tags: [Stocks]
+      summary: Get the authenticated user's stock holdings
+      description: |
+        Returns all positions in `stock_holdings` for the current user,
+        ordered by ticker. Each row reflects the weighted average purchase
+        price across all buy orders for that ticker.
+      operationId: getStockPortfolio
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of holdings (empty array if none)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StockHolding"
+              example:
+                - ticker: AAPL
+                  quantity: 10.0
+                  avg_price: 207.32
+                  currency: USD
+                  updated_at: "2026-07-08T14:23:00"
+                - ticker: NVDA
+                  quantity: 3.0
+                  avg_price: 128.50
+                  currency: USD
+                  updated_at: "2026-07-08T15:01:00"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/stocks/orders:
+    get:
+      tags: [Stocks]
+      summary: Get the authenticated user's stock order history
+      description: |
+        Returns all rows from `stock_orders` for the current user, ordered by
+        `created_at` descending. Each order is immutable — a new row is always
+        inserted, never updated.
+      operationId: getStockOrders
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of orders (empty array if none)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StockOrder"
+              example:
+                - id: 3
+                  ticker: AAPL
+                  quantity: 5.0
+                  price: 213.49
+                  total: 1067.45
+                  currency: USD
+                  from_account: FR7601234001001
+                  status: completed
+                  created_at: "2026-07-08T14:23:00"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/stocks/buy:
+    post:
+      tags: [Stocks]
+      summary: Purchase shares of a stock
+      description: |
+        Purchases shares by executing this sequence atomically in main-app:
+
+        1. **Fetch live price** from stock-service (`GET /api/stocks/quote`).
+        2. **Compute total** = `quantity × price`.
+        3. **Debit the bank account** via transfer-service (`POST /api/transfer`)
+           using `STOCK-MARKET-VIRTUAL` as destination. Returns 422 on
+           insufficient funds.
+        4. **Upsert `stock_holdings`** — quantity added, avg_price recalculated
+           as weighted average.
+        5. **Insert `stock_orders`** record with status `completed`.
+
+        Fractional shares are supported (minimum quantity: 0.001).
+      operationId: buyStock
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockBuyRequest"
+            examples:
+              buy_aapl:
+                summary: Buy 5 shares of AAPL
+                value:
+                  ticker: AAPL
+                  quantity: 5
+                  from_account: FR7601234001001
+              buy_nvda_fractional:
+                summary: Buy 0.5 shares of NVDA
+                value:
+                  ticker: NVDA
+                  quantity: 0.5
+                  from_account: FR7601234001002
+      responses:
+        "200":
+          description: Purchase completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockBuyResponse"
+              example:
+                message: Successfully purchased 5 share(s) of AAPL
+                order_id: 3
+                ticker: AAPL
+                quantity: 5.0
+                price: 213.49
+                total: 1067.45
+                currency: USD
+                from_account: FR7601234001001
+        "400":
+          description: Missing or invalid request body field
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                bad_quantity:
+                  value: { error: "quantity must be a positive number" }
+                missing_ticker:
+                  value: { error: "ticker is required" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Ticker not found on Yahoo Finance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Insufficient funds in the source account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Insufficient funds
+        "503":
+          description: stock-service or transfer-service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
