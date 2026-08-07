@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let activePeriod   = "1mo";
 
   // ── Quick-pick chips ─────────────────────────────────────────
-  const POPULAR = ["AAPL","MSFT","GOOGL","AMZN","NVDA","TSLA","META","NFLX","AMD","INTC"];
+  const POPULAR = ["FFIV","AAPL","MSFT","GOOGL","AMZN","NVDA","TSLA","META","NFLX","AMD","INTC"];
   const chipsEl = document.getElementById("ticker-chips");
   if (chipsEl) {
     chipsEl.innerHTML = POPULAR.map(t =>
