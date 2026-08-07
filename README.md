@@ -2,6 +2,12 @@
 
 > **⚠️ WARNING: This application is intentionally vulnerable. It is designed exclusively for F5 WAF/security demonstration purposes. NEVER deploy in production.**
 
+![Home page](./images/home-page.png)
+
+![Dashboard](./images/dashboard.png)
+
+![Stocks](./images/stocks.png)
+
 ---
 
 ## 🚀 Quick Start
