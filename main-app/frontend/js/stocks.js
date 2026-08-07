@@ -245,6 +245,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ── Initial load ─────────────────────────────────────────────
   await Promise.all([populateAccountSelect(), loadPortfolio(), loadOrders()]);
-  loadQuote("AAPL");
+  loadQuote("FFIV");
 });
 
