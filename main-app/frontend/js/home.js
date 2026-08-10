@@ -8,8 +8,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnSpinner= document.getElementById("login-btn-spinner");
   const errorBox  = document.getElementById("login-error");
 
-  // If already authenticated, redirect to dashboard
-  API.me().then(() => { window.location.href = "/dashboard.html"; }).catch(() => {});
+  // If a JWT token exists, verify it is still valid and redirect to dashboard.
+  // Skipping the call entirely when no token is present avoids a pointless 401.
+  if (localStorage.getItem("arcadia_jwt")) {
+    API.me().then(() => { window.location.href = "/dashboard.html"; }).catch(() => {});
+  }
 
   function setLoading(on) {
     btnText.textContent = on ? "Signing in…" : "Sign In";
