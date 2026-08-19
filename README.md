@@ -14,7 +14,7 @@
 
 ```bash
 git clone <repo>
-cd demo-app-f5-2026-claude
+cd arcadia-finance-3.0
 docker compose up --build
 ```
 
