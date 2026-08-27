@@ -285,11 +285,8 @@ def transfers():
 def get_config():
     rows = db.query("SELECT config_key, config_value FROM app_config")
     cfg = {r["config_key"]: r["config_value"] for r in rows}
-    if cfg.get("llm_token"):
-        tok = cfg["llm_token"]
-        cfg["llm_token_masked"] = tok[:6] + "..." + tok[-4:] if len(tok) > 12 else "****"
-    else:
-        cfg["llm_token_masked"] = ""
+    # llm_token is stored in the user's browser only — never returned from the server.
+    cfg.pop("llm_token", None)
     return jsonify(cfg)
 
 
@@ -297,7 +294,8 @@ def get_config():
 @require_auth
 def set_config():
     data = request.get_json(force=True)
-    allowed_keys = {"llm_url", "llm_token", "llm_model", "chatbot_system_prompt"}
+    # llm_token is intentionally excluded: it must never be persisted on the server.
+    allowed_keys = {"llm_url", "llm_model", "chatbot_system_prompt"}
     for key, value in data.items():
         if key in allowed_keys:
             db.execute(
@@ -318,9 +316,13 @@ def chat():
     cfg = {r["config_key"]: r["config_value"] for r in rows}
 
     llm_url    = (cfg.get("llm_url") or "").strip()
-    llm_token  = (cfg.get("llm_token") or "").strip()
     llm_model  = (cfg.get("llm_model") or "gpt-4o").strip()
     sys_prompt = cfg.get("chatbot_system_prompt") or "You are Aria, a helpful Arcadia Finance virtual assistant."
+
+    # The LLM token is stored exclusively in the user's browser (localStorage).
+    # The browser sends it per-request via the X-LLM-Token header.
+    # It is used only in-memory here to build the outbound request — never written to DB or disk.
+    llm_token = (request.headers.get("X-LLM-Token") or "").strip()
 
     if not llm_url:
         return jsonify({

@@ -145,6 +145,5 @@ CREATE TABLE IF NOT EXISTS stock_orders (
 -- ─────────────────────────────────────────
 INSERT IGNORE INTO app_config (config_key, config_value) VALUES
 ('llm_url',   ''),
-('llm_token', ''),
 ('llm_model', 'gpt-4o'),
 ('chatbot_system_prompt', 'You are Aria, a helpful virtual assistant for Arcadia Finance. You help clients with questions about their accounts, transfers, and banking services. Be concise, professional, and friendly.');

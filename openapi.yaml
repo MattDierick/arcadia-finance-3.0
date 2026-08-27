@@ -25,7 +25,7 @@ info:
     name: Internal Demo - Not for production use
 
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost
     description: Local Docker Compose stack
 
 tags:
@@ -231,21 +231,23 @@ components:
         llm_url:
           type: string
           example: https://api.openai.com
-        llm_token_masked:
-          type: string
-          description: Masked token (first 6 + last 4 chars)
-          example: sk-pro...k3Qz
         llm_model:
           type: string
           example: gpt-4o
         chatbot_system_prompt:
           type: string
           example: You are Aria, a helpful Arcadia Finance virtual assistant.
+      description: >
+        NOTE: llm_token is intentionally absent. The LLM API token is stored exclusively
+        in the user's browser (localStorage key "arcadia_llm_token") and is never
+        persisted on the server or returned by this endpoint.
 
     ConfigRequest:
       type: object
       description: >
-        All keys optional. Omitting llm_token keeps the stored token unchanged.
+        All keys optional. llm_token is NOT accepted — the LLM API token must be stored
+        in the browser (localStorage) and is forwarded per chat-request via the
+        X-LLM-Token header. The server never persists it.
       properties:
         llm_url:
           type: string
@@ -254,13 +256,6 @@ components:
             automatically) OR full Azure OpenAI endpoint with deployment path and
             ?api-version= query param (used as-is).
           example: https://dierick-openai.openai.azure.com/openai/deployments/gpt-4o-mini/chat/completions?api-version=2025-01-01-preview
-        llm_token:
-          type: string
-          format: password
-          description: >
-            API key. Sent as api-key header for Azure OpenAI (openai.azure.com)
-            or Authorization: Bearer for all other providers.
-          example: sk-...
         llm_model:
           type: string
           example: gpt-4o
@@ -961,7 +956,9 @@ paths:
       description: |
         Upserts one or more LLM configuration keys. Only keys present in the
         request body are updated; omitted keys are left unchanged.
-        NOTE: The token is stored in plain text in app_config -- intentional vulnerability.
+        NOTE: llm_token is NOT accepted by this endpoint. The LLM API token is stored
+        exclusively in the browser (localStorage) and forwarded per chat-request via
+        the X-LLM-Token header — it is never persisted on the server.
       operationId: saveConfig
       security:
         - BearerAuth: []
@@ -976,14 +973,12 @@ paths:
                 summary: Azure OpenAI full endpoint
                 value:
                   llm_url: https://dierick-openai.openai.azure.com/openai/deployments/gpt-4o-mini/chat/completions?api-version=2025-01-01-preview
-                  llm_token: your-azure-api-key
                   llm_model: gpt-4o-mini
                   chatbot_system_prompt: You are Aria, a helpful Arcadia Finance virtual assistant.
               openai:
                 summary: Standard OpenAI base URL
                 value:
                   llm_url: https://api.openai.com
-                  llm_token: sk-...
                   llm_model: gpt-4o
       responses:
         "200":
@@ -1051,7 +1046,7 @@ paths:
                 $ref: "#/components/schemas/Error"
 
   # ── Stocks ──────────────────────────────────────────────────────────────────
-  # All routes are proxied by main-app (8080) → stock-service (8082).
+  # All routes are proxied by main-app (80) → stock-service (8082).
   # stock-service wraps yahoo-finance-mcp stdio server (MIT, Alex2Yang97).
 
   /api/stocks/quote:

@@ -18,7 +18,7 @@ cd arcadia-finance-3.0
 docker compose up --build
 ```
 
-Open **http://localhost:8080** in your browser.
+Open **http://localhost** in your browser.
 
 ---
 
@@ -27,11 +27,11 @@ Open **http://localhost:8080** in your browser.
 | Service | Container | Port | Role |
 |---|---|---|---|
 | **db** | `arcadia-db` | 3306 | MySQL 8 — all persistent data, auto-seeded |
-| **main-app** | `arcadia-main` | 8080 | Flask — serves frontend + API (auth, accounts, config, chat, proxy to transfer-service & stock-service) |
+| **main-app** | `arcadia-main` | 80 | Flask — serves frontend + API (auth, accounts, config, chat, proxy to transfer-service & stock-service) |
 | **transfer-service** | `arcadia-transfer` | 8081 (internal) | Flask — dedicated money-transfer microservice |
 | **stock-service** | `arcadia-stock` | 8082 (internal) | Flask — stock quotes & purchases, wraps the Yahoo Finance MCP server |
 
-All browser traffic goes through **main-app** on port **8080** only.
+All browser traffic goes through **main-app** on port **80** only.
 
 > ⚠️ **First run or schema changes:** the database uses a persistent Docker named volume (`db_data`). If you need to recreate the schema (e.g. to add the new `stock_holdings` / `stock_orders` tables), run:
 > ```bash
@@ -61,7 +61,7 @@ All private API endpoints require a valid JWT Bearer token. Tokens are issued by
 ### Step 1 — Obtain a token
 
 ```bash
-curl -s -X POST http://localhost:8080/api/token \
+curl -s -X POST http://localhost/api/token \
   -H "Content-Type: application/json" \
   -d '{"username": "alice", "password": "alice123"}'
 ```
@@ -88,25 +88,25 @@ Pass the token in the `Authorization: Bearer` header on every subsequent request
 
 **Get current user profile:**
 ```bash
-curl -s http://localhost:8080/api/me \
+curl -s http://localhost/api/me \
   -H "Authorization: Bearer <access_token>"
 ```
 
 **List accounts:**
 ```bash
-curl -s http://localhost:8080/api/accounts \
+curl -s http://localhost/api/accounts \
   -H "Authorization: Bearer <access_token>"
 ```
 
 **Get transfer history for an account:**
 ```bash
-curl -s "http://localhost:8080/api/transfers?account=FR7601234001001" \
+curl -s "http://localhost/api/transfers?account=FR7601234001001" \
   -H "Authorization: Bearer <access_token>"
 ```
 
 **Execute a transfer:**
 ```bash
-curl -s -X POST http://localhost:8080/api/transfer \
+curl -s -X POST http://localhost/api/transfer \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <access_token>" \
   -d '{
@@ -119,7 +119,7 @@ curl -s -X POST http://localhost:8080/api/transfer \
 
 ### Postman Quick Setup
 
-1. Send `POST http://localhost:8080/api/token` with the JSON body above.
+1. Send `POST http://localhost/api/token` with the JSON body above.
 2. Copy the `access_token` value from the response.
 3. In any subsequent request, go to **Authorization → Bearer Token** and paste the token.
 4. Alternatively, use a **Collection Variable** + a **Post-response Script** to capture it automatically:
@@ -161,12 +161,12 @@ Then set `Authorization → Bearer Token` to `{{jwt_token}}` on every protected 
 
 ## 📈 Stock Market — API Usage (curl / Postman)
 
-All stock endpoints go through **main-app** (`http://localhost:8080`). The JWT obtained in Step 1 above is reused for all calls.
+All stock endpoints go through **main-app** (`http://localhost`). The JWT obtained in Step 1 above is reused for all calls.
 
 ### Get a live quote
 
 ```bash
-curl -s "http://localhost:8080/api/stocks/quote?ticker=AAPL" \
+curl -s "http://localhost/api/stocks/quote?ticker=AAPL" \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -196,7 +196,7 @@ curl -s "http://localhost:8080/api/stocks/quote?ticker=AAPL" \
 
 ```bash
 # 3 months of daily candles
-curl -s "http://localhost:8080/api/stocks/history?ticker=NVDA&period=3mo&interval=1d" \
+curl -s "http://localhost/api/stocks/history?ticker=NVDA&period=3mo&interval=1d" \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -206,7 +206,7 @@ Valid `interval` values: `1m` `2m` `5m` `15m` `30m` `60m` `1h` `1d` `5d` `1wk` `
 ### Search / validate a ticker
 
 ```bash
-curl -s "http://localhost:8080/api/stocks/search?q=TSLA" \
+curl -s "http://localhost/api/stocks/search?q=TSLA" \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -215,7 +215,7 @@ curl -s "http://localhost:8080/api/stocks/search?q=TSLA" \
 ### Buy shares
 
 ```bash
-curl -s -X POST http://localhost:8080/api/stocks/buy \
+curl -s -X POST http://localhost/api/stocks/buy \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <access_token>" \
   -d '{
@@ -250,11 +250,11 @@ The buy flow executes atomically in main-app:
 
 ```bash
 # Current holdings
-curl -s http://localhost:8080/api/stocks/portfolio \
+curl -s http://localhost/api/stocks/portfolio \
   -H "Authorization: Bearer <access_token>"
 
 # Full order history
-curl -s http://localhost:8080/api/stocks/orders \
+curl -s http://localhost/api/stocks/orders \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -273,7 +273,7 @@ The **Model Context Protocol** is an open standard (by Anthropic) that defines h
 The Yahoo Finance MCP server uses **stdio transport** — it is designed to be spawned as a subprocess and communicate over stdin/stdout rather than exposing an HTTP port. To use it inside a Docker Compose network, Arcadia Finance adds a thin wrapper microservice:
 
 ```
-Browser ──HTTP(8080)──▶ main-app ──HTTP(8082, JWT)──▶ stock-service
+Browser ──HTTP(80)──▶ main-app ──HTTP(8082, JWT)──▶ stock-service
                                                          │
                                              spawns MCP server over stdio
                                                          │
@@ -317,7 +317,7 @@ Other tools provided by the server (financial statements, options chain, analyst
 
 ## 🎯 Demo Scenario
 
-1. Open **http://localhost:8080** — Arcadia Finance home page loads with branded hero, features, and login form.
+1. Open **http://localhost** — Arcadia Finance home page loads with branded hero, features, and login form.
 2. Click a demo user button to auto-fill credentials, then **Sign In**.
 3. **Dashboard** shows all user accounts (checking/savings/investment) with balances and a Chart.js bar chart.
 4. Click any account card to load its **transfer history**.
@@ -344,7 +344,7 @@ Other tools provided by the server (financial statements, options chain, analyst
 | **No CSRF protection** | All POST endpoints | Cross-site request forgery possible |
 | **Permissive CORS** | All APIs | `origins="*"` |
 | **No rate limiting** | All endpoints | Brute-force login possible |
-| **LLM token in DB plaintext** | `app_config` table | SELECT config_value FROM app_config WHERE config_key='llm_token' |
+| **LLM token in browser localStorage** | `localStorage["arcadia_llm_token"]` | Accessible via `window._arcadiaLlmToken.get()` in browser DevTools — not stored server-side |
 
 ---
 

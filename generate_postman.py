@@ -400,10 +400,11 @@ def build_config():
     )
     update_node = build_request(
         "POST", "/api/config",
-        "Updates the LLM configuration used by the Aria chatbot. All fields are optional.",
+        "Updates the LLM configuration used by the Aria chatbot. All fields are optional. "
+        "NOTE: llm_token is NOT accepted here — the LLM API token is stored exclusively in the "
+        "browser (localStorage) and forwarded per-request via the X-LLM-Token header.",
         body={
             "llm_url":           "https://api.openai.com",
-            "llm_token":         "sk-proj-your-token-here",
             "llm_model":         "gpt-4o",
             "llm_system_prompt": "You are Aria, the Arcadia Finance AI assistant."
         }
@@ -415,7 +416,6 @@ def build_config():
             make_item("Get LLM Config  GET /api/config", get_node, [
                 make_resp("200 - LLM config", 200, "OK", {
                     "llm_url": "https://api.openai.com",
-                    "llm_token_masked": "sk-pro...k3Qz",
                     "llm_model": "gpt-4o",
                     "llm_system_prompt": "You are Aria, the Arcadia Finance AI assistant."
                 }, get_node["request"]),

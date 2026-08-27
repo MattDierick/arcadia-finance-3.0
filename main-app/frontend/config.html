@@ -65,7 +65,8 @@
           <div class="form-group">
             <label class="form-label">API Token / Bearer Key</label>
             <input class="form-input" id="llm-token" type="password" placeholder="sk-… (leave blank to keep current)"/>
-            <div id="token-masked" class="text-sm text-muted mt-sm">No token stored</div>
+            <div id="token-masked" class="text-sm text-muted mt-sm">No token stored in browser</div>
+            <div class="text-sm text-muted mt-sm">🔒 Stored in your browser only (localStorage) — never sent to or saved on the server.</div>
           </div>
           <div class="form-group">
             <label class="form-label">Model Name</label>
@@ -90,7 +91,7 @@
           <span style="font-size:1.3rem">&#9888;&#65039;</span>
           <div>
             <div style="font-weight:600;margin-bottom:4px;color:var(--status-warning)">Security Demo Notice</div>
-            <div class="text-sm text-muted">This application is intentionally configured with known vulnerabilities for F5 WAF demonstration purposes. The LLM token is stored in the database in plain text. <strong>Do not use real credentials in a production environment.</strong></div>
+            <div class="text-sm text-muted">This application is intentionally configured with known vulnerabilities for F5 WAF demonstration purposes. The LLM token is stored in your browser (localStorage) only — it is never persisted in the database or on the server. <strong>Do not use real credentials in a production environment.</strong></div>
           </div>
         </div>
       </div>
