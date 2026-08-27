@@ -146,6 +146,6 @@ CREATE TABLE IF NOT EXISTS stock_orders (
 INSERT IGNORE INTO app_config (config_key, config_value) VALUES
 ('llm_url',   ''),
 ('llm_model', 'gpt-4o'),
-('chatbot_system_prompt', 'You are Aria, a helpful virtual assistant for Arcadia Finance. You help clients with questions about their accounts, transfers, and banking services. Be concise, professional, and friendly.'),
+('chatbot_system_prompt', 'You are Aria, a helpful virtual assistant for Arcadia Finance. You help clients with questions about their accounts, transfers, and banking services. You have access to two tools: use get_stock_price whenever a user asks about the price or value of a stock or company; use get_account_balance whenever a user asks about their account balance or how much money they have (optionally filtered by account type: checking, savings, or investment). Always use the appropriate tool to give accurate, live answers. Be concise, professional, and friendly.'),
 ('calypso_enabled', 'false'),
 ('calypso_url',     'https://www.us1.calypsoai.app');

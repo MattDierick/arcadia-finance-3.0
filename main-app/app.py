@@ -324,7 +324,162 @@ def set_config():
     return jsonify({"message": "Configuration saved"})
 
 # ──────────────────────────────────────────────────────────────
-# CHATBOT – proxies to configured LLM
+# CHATBOT – tool definitions + helpers
+# ──────────────────────────────────────────────────────────────
+
+# OpenAI-style tool schemas exposed to the LLM.
+# The LLM picks the appropriate tool automatically based on the user's question.
+CHAT_TOOLS = [
+    # ── Tool 1: live stock price via MCP stock-service ────────────────────────
+    {
+        "type": "function",
+        "function": {
+            "name": "get_stock_price",
+            "description": (
+                "Get the current real-time market price and key quote data for a stock ticker symbol. "
+                "Use this tool whenever a user asks about the price, value, or quote of a stock or company. "
+                "Returns price, currency, daily change, market cap, P/E ratio, and more."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ticker": {
+                        "type": "string",
+                        "description": (
+                            "The stock ticker symbol, e.g. 'AAPL' for Apple, 'MSFT' for Microsoft, "
+                            "'FFIV' for F5 Inc., 'NVDA' for NVIDIA."
+                        ),
+                    }
+                },
+                "required": ["ticker"],
+            },
+        },
+    },
+    # ── Tool 2: authenticated user's own account balance(s) ──────────────────
+    {
+        "type": "function",
+        "function": {
+            "name": "get_account_balance",
+            "description": (
+                "Get the current balance of the authenticated user's own bank account(s) at Arcadia Finance. "
+                "Use this tool whenever a user asks how much money they have, what their balance is, "
+                "or asks about a specific account type (checking, savings, or investment). "
+                "Never pass a user_id — balances are always scoped to the logged-in user. "
+                "Returns a list of accounts with their balance and currency."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "account_type": {
+                        "type": "string",
+                        "enum": ["checking", "savings", "investment"],
+                        "description": (
+                            "Optional. Filter by account type: 'checking', 'savings', or 'investment'. "
+                            "Omit this parameter to return all the user's accounts."
+                        ),
+                    }
+                },
+                "required": [],
+            },
+        },
+    },
+]
+
+
+def _get_stock_quote(ticker: str) -> dict:
+    """
+    Fetch a live stock quote from the MCP-backed stock-service.
+    Returns the normalised quote dict on success, or {"error": "..."} on failure.
+    The result is serialised to JSON and fed back to the LLM as a tool result.
+    """
+    try:
+        resp = http_requests.get(
+            f"{STOCK_SERVICE_URL}/api/stocks/quote",
+            params={"ticker": ticker.upper()},
+            headers=_stock_headers(),
+            timeout=30,
+        )
+        data = resp.json()
+        if resp.status_code != 200:
+            return {"error": data.get("error", f"Stock service returned {resp.status_code}")}
+        return data
+    except Exception as e:
+        return {"error": f"Could not fetch quote for {ticker}: {str(e)}"}
+
+
+def _get_account_balance(account_type: str = None) -> dict:
+    """
+    Return the authenticated user's own account balance(s) from the DB.
+    Ownership is always enforced server-side via g.current_user_id —
+    the LLM cannot request another user's balances through this tool.
+
+    account_type: optional filter ('checking', 'savings', 'investment').
+                  If None/empty, all accounts are returned.
+    """
+    from flask import g
+    try:
+        valid_types = {"checking", "savings", "investment"}
+        if account_type and account_type.lower() in valid_types:
+            rows = db.query(
+                "SELECT account_number, type, balance, currency "
+                "FROM accounts WHERE user_id = %s AND type = %s ORDER BY type",
+                (g.current_user_id, account_type.lower()),
+            )
+        else:
+            rows = db.query(
+                "SELECT account_number, type, balance, currency "
+                "FROM accounts WHERE user_id = %s ORDER BY type",
+                (g.current_user_id,),
+            )
+
+        accounts = [
+            {
+                "account_number": r["account_number"],
+                "type":           r["type"],
+                "balance":        float(r["balance"]),
+                "currency":       r["currency"],
+            }
+            for r in rows
+        ]
+
+        if not accounts:
+            return {
+                "accounts": [],
+                "message": (
+                    f"No {account_type} account found."
+                    if account_type else "No accounts found."
+                ),
+            }
+
+        return {"accounts": accounts}
+
+    except Exception as e:
+        return {"error": f"Could not fetch account balance: {str(e)}"}
+
+
+def _f5_scan_reply(cai, reply: str):
+    """
+    Run a CalypsoAI response scan on the final LLM reply.
+    Returns (blocked: bool, error_response | None).
+    """
+    try:
+        response_scan    = cai.scans.scan(reply)
+        response_data    = json.loads(response_scan.model_dump_json())
+        response_outcome = response_data.get("result", {}).get("outcome", "")
+        print(f"[F5 AI Security] response scan outcome: {response_outcome}")
+        if response_outcome != "cleared":
+            return True, jsonify({
+                "reply":      "🛡️ The assistant's response was blocked by F5 AI Security.",
+                "blocked":    True,
+                "configured": True,
+            })
+        return False, None
+    except Exception as e:
+        return True, (jsonify({"error": f"F5 AI Security response scan failed: {str(e)}", "configured": True}), 502)
+
+
+# ──────────────────────────────────────────────────────────────
+# CHATBOT – proxies to configured LLM (with tool calling)
 # ──────────────────────────────────────────────────────────────
 
 @app.route("/api/chat", methods=["POST"])
@@ -369,7 +524,6 @@ def chat():
     full_messages = [{"role": "system", "content": sys_prompt}] + messages
 
     # ── F5 AI Security: scan the user prompt BEFORE sending to the LLM ───────
-    # Extract the last user message as the prompt to scan.
     user_prompt = ""
     for msg in reversed(messages):
         if msg.get("role") == "user":
@@ -378,8 +532,8 @@ def chat():
 
     if cai and user_prompt:
         try:
-            prompt_scan   = cai.scans.scan(user_prompt)
-            prompt_data   = json.loads(prompt_scan.model_dump_json())
+            prompt_scan    = cai.scans.scan(user_prompt)
+            prompt_data    = json.loads(prompt_scan.model_dump_json())
             prompt_outcome = prompt_data.get("result", {}).get("outcome", "")
             print(f"[F5 AI Security] prompt scan outcome: {prompt_outcome}")
             if prompt_outcome != "cleared":
@@ -391,54 +545,102 @@ def chat():
         except Exception as e:
             return jsonify({"error": f"F5 AI Security prompt scan failed: {str(e)}", "configured": True}), 502
 
-    headers = {"Content-Type": "application/json"}
+    # ── Build LLM request headers ─────────────────────────────────────────────
+    llm_headers = {"Content-Type": "application/json"}
     if llm_token:
-        # Azure OpenAI uses "api-key" header; all other providers use "Authorization: Bearer"
         if "openai.azure.com" in llm_url:
-            headers["api-key"] = llm_token
+            llm_headers["api-key"] = llm_token
         else:
-            headers["Authorization"] = f"Bearer {llm_token}"
+            llm_headers["Authorization"] = f"Bearer {llm_token}"
 
-    # Resolve the final endpoint URL:
-    #   - If the stored URL already contains "chat/completions" (e.g. full Azure OpenAI URL
-    #     with deployment path + api-version query param), use it exactly as-is.
-    #   - If it ends with "/v1", append "/chat/completions".
-    #   - Otherwise treat it as a base URL and append "/v1/chat/completions".
+    # Resolve the final endpoint URL.
     url_stripped = llm_url.rstrip("/")
     if "chat/completions" in url_stripped:
-        endpoint = llm_url  # already a full endpoint — preserve query string intact
+        endpoint = llm_url
     elif url_stripped.endswith("/v1"):
         endpoint = url_stripped + "/chat/completions"
     else:
         endpoint = url_stripped + "/v1/chat/completions"
 
-    # Azure OpenAI ignores the "model" field (the deployment is encoded in the URL),
-    # but sending it is harmless. For non-Azure endpoints the model field is required.
-    payload = {"model": llm_model, "messages": full_messages, "stream": False}
+    # ── First LLM call — include all chat tools ───────────────────────────────
+    payload = {
+        "model":       llm_model,
+        "messages":    full_messages,
+        "tools":       CHAT_TOOLS,
+        "tool_choice": "auto",
+        "stream":      False,
+    }
 
     try:
-        resp = http_requests.post(endpoint, json=payload, headers=headers, timeout=60)
+        resp   = http_requests.post(endpoint, json=payload, headers=llm_headers, timeout=60)
         resp.raise_for_status()
-        result = resp.json()
-        reply = result["choices"][0]["message"]["content"]
+        result   = resp.json()
+        choice   = result["choices"][0]
+        finish   = choice.get("finish_reason", "")
+        asst_msg = choice["message"]
 
-        # ── F5 AI Security: scan the LLM response BEFORE returning to the user ─
+        # ── Tool-call branch: LLM wants to call one or more tools ────────────
+        if finish == "tool_calls" or asst_msg.get("tool_calls"):
+            tool_calls = asst_msg.get("tool_calls", [])
+            full_messages.append(asst_msg)          # keep assistant turn in context
+
+            for tc in tool_calls:
+                fn_name = tc.get("function", {}).get("name", "")
+                tc_id   = tc.get("id", "")
+
+                if fn_name == "get_stock_price":
+                    # ── Tool: live stock quote via MCP stock-service ──────────
+                    try:
+                        args   = json.loads(tc["function"].get("arguments", "{}"))
+                        ticker = args.get("ticker", "").strip().upper()
+                    except (json.JSONDecodeError, KeyError):
+                        ticker = ""
+                    tool_result = _get_stock_quote(ticker) if ticker else {"error": "No ticker provided."}
+                    print(f"[Stock tool] {ticker} → {tool_result}")
+
+                elif fn_name == "get_account_balance":
+                    # ── Tool: authenticated user's own account balance(s) ─────
+                    # Ownership is enforced server-side (g.current_user_id).
+                    # The LLM can only optionally filter by account_type.
+                    try:
+                        args         = json.loads(tc["function"].get("arguments", "{}"))
+                        account_type = args.get("account_type", "").strip().lower() or None
+                    except (json.JSONDecodeError, KeyError):
+                        account_type = None
+                    tool_result = _get_account_balance(account_type)
+                    print(f"[Account tool] type={account_type!r} → {tool_result}")
+
+                else:
+                    tool_result = {"error": f"Unknown tool: {fn_name}"}
+
+                full_messages.append({
+                    "role":         "tool",
+                    "tool_call_id": tc_id,
+                    "content":      json.dumps(tool_result),
+                })
+
+            # ── Second LLM call — produce the final natural-language reply ────
+            resp2  = http_requests.post(
+                endpoint,
+                json={"model": llm_model, "messages": full_messages, "stream": False},
+                headers=llm_headers,
+                timeout=60,
+            )
+            resp2.raise_for_status()
+            reply = resp2.json()["choices"][0]["message"]["content"]
+
+        else:
+            # ── Standard branch: no tool call ─────────────────────────────────
+            reply = asst_msg.get("content", "")
+
+        # ── F5 AI Security: scan the final reply BEFORE returning to user ─────
         if cai:
-            try:
-                response_scan    = cai.scans.scan(reply)
-                response_data    = json.loads(response_scan.model_dump_json())
-                response_outcome = response_data.get("result", {}).get("outcome", "")
-                print(f"[F5 AI Security] response scan outcome: {response_outcome}")
-                if response_outcome != "cleared":
-                    return jsonify({
-                        "reply":      "🛡️ The assistant's response was blocked by F5 AI Security.",
-                        "blocked":    True,
-                        "configured": True,
-                    })
-            except Exception as e:
-                return jsonify({"error": f"F5 AI Security response scan failed: {str(e)}", "configured": True}), 502
+            blocked, err_resp = _f5_scan_reply(cai, reply)
+            if blocked:
+                return err_resp
 
         return jsonify({"reply": reply, "configured": True})
+
     except http_requests.exceptions.Timeout:
         return jsonify({"error": "LLM request timed out", "configured": True}), 504
     except Exception as e:
