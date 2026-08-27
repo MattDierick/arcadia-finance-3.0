@@ -85,6 +85,52 @@
         </form>
       </div>
 
+      <!-- F5 AI Security Guardrails -->
+      <div class="config-section" style="margin-top:var(--space-lg)">
+        <div class="config-section-title">
+          <span style="display:flex;align-items:center;gap:8px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--f5-cyber-coral)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            F5 AI Security — Guardrails
+          </span>
+        </div>
+        <div class="config-section-desc">
+          Optionally route every prompt and LLM response through <strong>F5 AI Security (CalypsoAI)</strong> for real-time scanning.
+          Unsafe content is blocked before it reaches the model or the user.
+        </div>
+
+        <form id="f5aisec-form">
+          <!-- Enable toggle -->
+          <div class="form-group">
+            <div class="toggle-row">
+              <span class="toggle-label">Enable F5 AI Security Guardrails</span>
+              <label class="switch">
+                <input type="checkbox" id="calypso-enabled"/>
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- URL -->
+          <div class="form-group">
+            <label class="form-label">F5 AI Security URL</label>
+            <input class="form-input" id="calypso-url" type="url" placeholder="https://www.us1.calypsoai.app"/>
+          </div>
+
+          <!-- Token (browser-only) -->
+          <div class="form-group">
+            <label class="form-label">F5 AI Security Token</label>
+            <input class="form-input" id="calypso-token" type="password" placeholder="(leave blank to keep current)"/>
+            <div id="calypso-token-masked" class="text-sm text-muted mt-sm">No token stored in browser</div>
+            <div class="text-sm text-muted mt-sm">🔒 Stored in your browser only (localStorage) — never sent to or saved on the server.</div>
+          </div>
+
+          <div id="f5aisec-result" class="mt-md"></div>
+          <div class="flex gap-md mt-lg" style="flex-wrap:wrap">
+            <button type="submit" class="btn btn-primary">Save F5 AI Security Settings</button>
+          </div>
+        </form>
+      </div>
+
       <!-- Info box -->
       <div class="card" style="border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.05)">
         <div style="display:flex;gap:12px;align-items:flex-start">

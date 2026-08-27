@@ -56,6 +56,27 @@ function _clearLlmToken() {
   localStorage.removeItem("arcadia_llm_token");
 }
 
+// ── F5 AI Security token helpers (browser-only, never touches the server) ──────
+
+/** Read the F5 AI Security (CalypsoAI) token from the browser, if any. */
+function _getF5AiSecToken() {
+  return localStorage.getItem("arcadia_f5aisec_token") || null;
+}
+
+/** Persist the F5 AI Security token in the browser only. */
+function _setF5AiSecToken(token) {
+  if (token) {
+    localStorage.setItem("arcadia_f5aisec_token", token);
+  } else {
+    localStorage.removeItem("arcadia_f5aisec_token");
+  }
+}
+
+/** Remove the F5 AI Security token from the browser. */
+function _clearF5AiSecToken() {
+  localStorage.removeItem("arcadia_f5aisec_token");
+}
+
 // ── Core fetch wrapper ────────────────────────────────────────────────────────
 
 async function apiFetch(path, options = {}) {
@@ -110,11 +131,16 @@ const API = {
   /**
    * Send a chat message to Aria.
    * The LLM token is read from localStorage and forwarded as the X-LLM-Token header.
-   * The server uses it only in-memory to proxy the LLM request — it is never stored.
+   * The F5 AI Security token is read from localStorage and forwarded as X-F5AISEC-Token.
+   * Both are used only in-memory on the server — never stored.
    */
   chat: (messages) => {
-    const llmToken = _getLlmToken();
-    const extraHeaders = llmToken ? { "X-LLM-Token": llmToken } : {};
+    const llmToken    = _getLlmToken();
+    const f5AiSecToken = _getF5AiSecToken();
+    const extraHeaders = {
+      ...(llmToken     ? { "X-LLM-Token":     llmToken }     : {}),
+      ...(f5AiSecToken ? { "X-F5AISEC-Token": f5AiSecToken } : {}),
+    };
     return apiFetch("/api/chat", {
       method: "POST",
       body: JSON.stringify({ messages }),
@@ -129,6 +155,14 @@ const API = {
   getLlmToken:   ()      => _getLlmToken(),
   /** Remove the LLM API token from browser localStorage. */
   clearLlmToken: ()      => _clearLlmToken(),
+
+  // ── F5 AI Security token (browser-only) ───────────────────────────────────
+  /** Save the F5 AI Security token to browser localStorage only — never sent to the server. */
+  saveF5AiSecToken:  (token) => _setF5AiSecToken(token),
+  /** Read the F5 AI Security token from browser localStorage. */
+  getF5AiSecToken:   ()      => _getF5AiSecToken(),
+  /** Remove the F5 AI Security token from browser localStorage. */
+  clearF5AiSecToken: ()      => _clearF5AiSecToken(),
 
   // ── Stocks ────────────────────────────────────────────────────────────────
   /** Get a live quote for a ticker symbol, e.g. "AAPL" */
@@ -151,3 +185,5 @@ window.API = API;
 window._arcadiaJwt = { get: _getJwt, set: _setJwt, clear: _clearJwt };
 // Expose LLM token helpers for debugging from the console
 window._arcadiaLlmToken = { get: _getLlmToken, set: _setLlmToken, clear: _clearLlmToken };
+// Expose F5 AI Security token helpers for debugging from the console
+window._arcadiaF5AiSecToken = { get: _getF5AiSecToken, set: _setF5AiSecToken, clear: _clearF5AiSecToken };

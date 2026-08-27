@@ -278,6 +278,24 @@ footer { background: var(--bg-secondary); border-top: 1px solid var(--border-sub
 .quote-metric-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .quote-metric-value { font-size: 0.95rem; font-weight: 600; margin-top: 2px; }
 
+/* ── Toggle Switch (F5 AI Security enable) ──────── */
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); }
+.toggle-label { font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); }
+.switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch-slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: var(--bg-input); border: 1px solid var(--border-card);
+  border-radius: var(--radius-full); transition: var(--transition);
+}
+.switch-slider::before {
+  content: ""; position: absolute;
+  width: 18px; height: 18px; left: 2px; top: 50%; transform: translateY(-50%);
+  background: var(--text-muted); border-radius: 50%; transition: var(--transition);
+}
+.switch input:checked + .switch-slider { background: var(--grad-brand); border-color: var(--f5-red-primary); }
+.switch input:checked + .switch-slider::before { transform: translate(20px, -50%); background: #fff; }
+
 /* ── Theme Toggle ─────────── */
 .theme-toggle {
   display: inline-flex;

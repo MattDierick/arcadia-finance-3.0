@@ -5,6 +5,7 @@ Serves the frontend and all API routes except money transfers (proxied to transf
 """
 
 import os
+import json
 import datetime
 import functools
 import requests as http_requests
@@ -12,6 +13,14 @@ import jwt
 from flask import Flask, request, jsonify, session, send_from_directory
 from flask_cors import CORS
 import db
+
+# F5 AI Security (CalypsoAI) SDK — optional; app degrades gracefully if not installed.
+try:
+    from calypsoai import CalypsoAI as _CalypsoAI
+    _CALYPSO_AVAILABLE = True
+except ImportError:
+    _CalypsoAI = None
+    _CALYPSO_AVAILABLE = False
 
 TRANSFER_SERVICE_URL = os.environ.get("TRANSFER_SERVICE_URL", "http://transfer-service:8081")
 STOCK_SERVICE_URL    = os.environ.get("STOCK_SERVICE_URL",    "http://stock-service:8082")
@@ -287,6 +296,10 @@ def get_config():
     cfg = {r["config_key"]: r["config_value"] for r in rows}
     # llm_token is stored in the user's browser only — never returned from the server.
     cfg.pop("llm_token", None)
+    # calypso_token is also browser-only — never returned from the server.
+    cfg.pop("calypso_token", None)
+    # Normalise calypso_enabled to a real boolean for the frontend.
+    cfg["calypso_enabled"] = cfg.get("calypso_enabled", "false").lower() == "true"
     return jsonify(cfg)
 
 
@@ -294,10 +307,15 @@ def get_config():
 @require_auth
 def set_config():
     data = request.get_json(force=True)
-    # llm_token is intentionally excluded: it must never be persisted on the server.
-    allowed_keys = {"llm_url", "llm_model", "chatbot_system_prompt"}
+    # Secrets (llm_token, calypso_token) are intentionally excluded:
+    # they must never be persisted on the server.
+    allowed_keys = {"llm_url", "llm_model", "chatbot_system_prompt",
+                    "calypso_enabled", "calypso_url"}
     for key, value in data.items():
         if key in allowed_keys:
+            # Normalise boolean to string for TEXT column.
+            if key == "calypso_enabled":
+                value = "true" if value else "false"
             db.execute(
                 "INSERT INTO app_config (config_key, config_value) VALUES (%s, %s) "
                 "ON DUPLICATE KEY UPDATE config_value = VALUES(config_value)",
@@ -324,6 +342,22 @@ def chat():
     # It is used only in-memory here to build the outbound request — never written to DB or disk.
     llm_token = (request.headers.get("X-LLM-Token") or "").strip()
 
+    # ── F5 AI Security (CalypsoAI) guardrail settings ────────────────────────
+    # calypso_enabled and calypso_url come from app_config (non-secret).
+    # calypso_token is stored exclusively in the user's browser (localStorage)
+    # and forwarded per-request via the X-F5AISEC-Token header — never persisted.
+    calypso_enabled = cfg.get("calypso_enabled", "false").lower() == "true"
+    calypso_url     = (cfg.get("calypso_url") or "").strip()
+    calypso_token   = (request.headers.get("X-F5AISEC-Token") or "").strip()
+
+    # Build the CalypsoAI client in-memory if guardrails are active.
+    cai = None
+    if calypso_enabled and calypso_token and calypso_url and _CALYPSO_AVAILABLE:
+        try:
+            cai = _CalypsoAI(url=calypso_url, token=calypso_token)
+        except Exception as e:
+            return jsonify({"error": f"F5 AI Security client init failed: {str(e)}", "configured": True}), 502
+
     if not llm_url:
         return jsonify({
             "reply": "I'm not configured yet. Please go to **Settings > LLM Config** and enter your LLM URL and API token.",
@@ -333,6 +367,29 @@ def chat():
     data = request.get_json(force=True)
     messages = data.get("messages", [])
     full_messages = [{"role": "system", "content": sys_prompt}] + messages
+
+    # ── F5 AI Security: scan the user prompt BEFORE sending to the LLM ───────
+    # Extract the last user message as the prompt to scan.
+    user_prompt = ""
+    for msg in reversed(messages):
+        if msg.get("role") == "user":
+            user_prompt = msg.get("content", "")
+            break
+
+    if cai and user_prompt:
+        try:
+            prompt_scan   = cai.scans.scan(user_prompt)
+            prompt_data   = json.loads(prompt_scan.model_dump_json())
+            prompt_outcome = prompt_data.get("result", {}).get("outcome", "")
+            print(f"[F5 AI Security] prompt scan outcome: {prompt_outcome}")
+            if prompt_outcome != "cleared":
+                return jsonify({
+                    "reply":      "🛡️ Your message was blocked by F5 AI Security.",
+                    "blocked":    True,
+                    "configured": True,
+                })
+        except Exception as e:
+            return jsonify({"error": f"F5 AI Security prompt scan failed: {str(e)}", "configured": True}), 502
 
     headers = {"Content-Type": "application/json"}
     if llm_token:
@@ -364,6 +421,23 @@ def chat():
         resp.raise_for_status()
         result = resp.json()
         reply = result["choices"][0]["message"]["content"]
+
+        # ── F5 AI Security: scan the LLM response BEFORE returning to the user ─
+        if cai:
+            try:
+                response_scan    = cai.scans.scan(reply)
+                response_data    = json.loads(response_scan.model_dump_json())
+                response_outcome = response_data.get("result", {}).get("outcome", "")
+                print(f"[F5 AI Security] response scan outcome: {response_outcome}")
+                if response_outcome != "cleared":
+                    return jsonify({
+                        "reply":      "🛡️ The assistant's response was blocked by F5 AI Security.",
+                        "blocked":    True,
+                        "configured": True,
+                    })
+            except Exception as e:
+                return jsonify({"error": f"F5 AI Security response scan failed: {str(e)}", "configured": True}), 502
+
         return jsonify({"reply": reply, "configured": True})
     except http_requests.exceptions.Timeout:
         return jsonify({"error": "LLM request timed out", "configured": True}), 504

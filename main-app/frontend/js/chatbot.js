@@ -74,6 +74,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (res.error) {
         appendMessage("bot", `⚠️ Error: ${res.error}`);
+      } else if (res.blocked) {
+        // F5 AI Security guardrail blocked the prompt or response.
+        appendMessage("bot", res.reply);
+        // Do NOT push a blocked reply into history so the conversation stays clean.
       } else {
         appendMessage("bot", res.reply);
         history.push({ role: "assistant", content: res.reply });
