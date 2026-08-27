@@ -305,13 +305,130 @@ Other tools provided by the server (financial statements, options chain, analyst
 
 ## 🤖 Chatbot (Aria)
 
+Aria is the Arcadia Finance AI assistant, powered by any OpenAI-compatible LLM. It is available on every page as a floating chat bubble (bottom-right). Beyond free-form conversation, Aria has access to **live tools** that let it answer questions about real data in real time.
+
+### Setup
+
 1. Log in to the application.
 2. Go to **Settings** (`/config.html`).
-3. Enter your OpenAI-compatible LLM **Base URL** and **API Token**.
+3. Under **AI Chatbot — LLM Configuration**, enter your OpenAI-compatible LLM **Base URL** and **API Token** (stored in browser `localStorage` only — never sent to the server).
 4. Click **Save Configuration**.
-5. The floating chat bubble on every page will now use your LLM.
+5. Optionally, enable **F5 AI Security Guardrails** (see section below).
+6. The floating chat bubble on every page will now use your LLM.
 
-**Supported LLM servers:** OpenAI API, Azure OpenAI, Ollama, LM Studio, vLLM, any server compatible with `/v1/chat/completions`.
+**Supported LLM servers:** OpenAI API, Azure OpenAI, Ollama, LM Studio, vLLM — any server compatible with `/v1/chat/completions` and OpenAI-style **function / tool calling**.
+
+---
+
+### 🛠️ Chat Tools
+
+Aria uses **OpenAI-style function calling** (`tools` / `tool_choice: "auto"`) to answer questions that require live data. When the LLM decides a tool is needed, the server executes it and feeds the result back before producing the final natural-language reply. This is a two-round-trip flow: the browser sees only the final answer.
+
+#### Tool 1 — `get_stock_price`
+
+Fetches a **live stock quote** for any ticker symbol via the MCP-backed `stock-service`.
+
+**Triggered by questions like:**
+- *"What's the price of AAPL?"*
+- *"How is NVDA doing today?"*
+- *"What's F5's stock worth right now?"*
+
+**Returns:** ticker, name, price, currency, daily change (absolute + %), market cap, P/E ratio, volume, day high/low, 52-week range, sector, industry.
+
+**Implementation:** `main-app` calls `GET /api/stocks/quote?ticker=…` on `stock-service` (JWT-authenticated), which uses the Yahoo Finance MCP server (`vendor/server.py`) over stdio transport.
+
+**Example conversation:**
+```
+User : What is the current price of FFIV?
+Aria : F5 Inc. (FFIV) is currently trading at $285.42, up $3.67 (+1.30%)
+       today. Market cap is approximately $17.2B with a P/E ratio of 24.1.
+```
+
+---
+
+#### Tool 2 — `get_account_balance`
+
+Returns the **authenticated user's own bank account balance(s)** directly from the Arcadia Finance database.
+
+**Triggered by questions like:**
+- *"How much do I have in my savings account?"*
+- *"What's my total balance?"*
+- *"What are my account balances?"*
+- *"How much is in my checking account?"*
+
+**Parameters:** optional `account_type` filter — `checking`, `savings`, or `investment`. Omit to return all accounts.
+
+**Security:** ownership is **always enforced server-side** via the authenticated user's session (`g.current_user_id`). The LLM cannot request another user's balances — no `user_id` is accepted from the model.
+
+**Returns:** list of accounts with `account_number`, `type`, `balance` (float), `currency`.
+
+**Example conversation:**
+```
+User : How much money do I have in my savings account?
+Aria : Your savings account (FR7601234001002) currently holds €35,200.00.
+
+User : What about all my accounts?
+Aria : Here are your current balances:
+       • Checking  (FR7601234001001) — €12,450.75
+       • Savings   (FR7601234001002) — €35,200.00
+       • Investment(FR7601234001003) — €80,000.00
+```
+
+---
+
+### Chat Tool Request Flow
+
+```
+User message
+     │
+     ▼  POST /api/chat  (X-LLM-Token + X-F5AISEC-Token headers)
+     │
+     ├─ [F5 AI Security] scan prompt  ──► blocked? → return shield message
+     │
+     ▼  LLM call 1  (tools=[get_stock_price, get_account_balance], tool_choice="auto")
+     │
+     ├─ finish_reason = "tool_calls"?
+     │     ├─ get_stock_price  → stock-service → MCP → Yahoo Finance
+     │     └─ get_account_balance → DB query (scoped to current user)
+     │         (tool results appended to conversation)
+     │
+     ▼  LLM call 2  (no tools — produce final reply)
+     │
+     ├─ [F5 AI Security] scan reply  ──► blocked? → return shield message
+     │
+     ▼  {"reply": "...", "configured": true}
+```
+
+If the LLM answers directly (no tool needed), only one LLM call is made.
+
+---
+
+### 🛡️ F5 AI Security Guardrails
+
+Aria optionally integrates with **F5 AI Security (CalypsoAI)** to scan both the user's prompt and the LLM's response before either reaches the model or the user.
+
+**Setup (in Settings page):**
+- Toggle **Enable F5 AI Security Guardrails**.
+- Enter your **F5 AI Security URL** (e.g. `https://www.us1.calypsoai.app`).
+- Enter your **F5 AI Security Token** (stored in browser `localStorage` only — never persisted on the server).
+
+**Flow:**
+1. Prompt scan → if not `cleared`, the message is blocked and the LLM is never called.
+2. LLM response scan → if not `cleared`, the response is blocked before reaching the user.
+3. Blocked messages display: `🛡️ Your message was blocked by F5 AI Security.` / `🛡️ The assistant's response was blocked by F5 AI Security.`
+
+**SDK:** `calypsoai` (installed from `https://docs.aisecurity.f5.com/calypsoai-3.6.0-py3-none-any.whl`).
+
+---
+
+### Token Storage Model
+
+| Secret | Where stored | How it reaches the server |
+|---|---|---|
+| LLM API token | Browser `localStorage` (`arcadia_llm_token`) | `X-LLM-Token` header per request — used in-memory only, never persisted |
+| F5 AI Security token | Browser `localStorage` (`arcadia_f5aisec_token`) | `X-F5AISEC-Token` header per request — used in-memory only, never persisted |
+
+Non-secret settings (`llm_url`, `llm_model`, `chatbot_system_prompt`, `calypso_enabled`, `calypso_url`) are stored server-side in the `app_config` database table.
 
 ---
 
@@ -329,7 +446,10 @@ Other tools provided by the server (financial statements, options chain, analyst
 10. **My Portfolio** and **Order History** tables refresh automatically after each purchase.
 11. Click the 💬 **Aria chatbot** FAB (bottom-right) to chat with the AI assistant.
 12. Navigate to **Settings** to configure the LLM URL + token.
-13. Use the 🌙/☀️ toggle in the navbar to switch between **dark and light mode** (preference persisted in `localStorage`).
+13. Ask Aria **"What is the current price of FFIV?"** — Aria calls the `get_stock_price` tool, fetches a live quote from the MCP-backed stock-service, and responds with price, daily change, and key metrics.
+14. Ask Aria **"How much do I have in my savings account?"** — Aria calls the `get_account_balance` tool, queries the database scoped to the logged-in user, and responds with the live balance.
+15. Ask Aria **"What are all my account balances?"** — Aria returns checking, savings, and investment balances in one reply.
+16. Use the 🌙/☀️ toggle in the navbar to switch between **dark and light mode** (preference persisted in `localStorage`).
 
 ---
 
@@ -372,6 +492,8 @@ Other tools provided by the server (financial statements, options chain, analyst
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   ├── app.py                  # Flask API + static serving + stocks proxy/buy routes
+│   │                           #   + Aria chat (CHAT_TOOLS: get_stock_price,
+│   │                           #     get_account_balance; F5 AI Security guardrails)
 │   ├── db.py                   # MySQL helpers (intentionally vulnerable query_raw())
 │   └── frontend/
 │       ├── index.html          # Home page + login + chatbot
