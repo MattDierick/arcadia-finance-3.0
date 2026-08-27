@@ -15,6 +15,18 @@
       "key": "token",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "llm_token",
+      "value": "",
+      "type": "string",
+      "description": "LLM API key — paste here or set via pre-request script. Never persisted server-side."
+    },
+    {
+      "key": "f5aisec_token",
+      "value": "",
+      "type": "string",
+      "description": "F5 AI Security (CalypsoAI) token — optional. Never persisted server-side."
     }
   ],
   "auth": {
@@ -2012,7 +2024,7 @@
                 }
               ],
               "_postman_previewlanguage": "json",
-              "body": "{\n  \"llm_url\": \"https://api.openai.com\",\n  \"llm_token_masked\": \"sk-pro...k3Qz\",\n  \"llm_model\": \"gpt-4o\",\n  \"llm_system_prompt\": \"You are Aria, the Arcadia Finance AI assistant.\"\n}"
+              "body": "{\n  \"llm_url\": \"https://api.openai.com\",\n  \"llm_model\": \"gpt-4o\",\n  \"llm_system_prompt\": \"You are Aria, the Arcadia Finance AI assistant.\"\n}"
             },
             {
               "name": "401 - Not authenticated",
@@ -2074,7 +2086,7 @@
                 "config"
               ]
             },
-            "description": "Updates the LLM configuration used by the Aria chatbot. All fields are optional.",
+            "description": "Updates the LLM configuration used by the Aria chatbot. All fields are optional. NOTE: llm_token is NOT accepted here — the LLM API token is stored exclusively in the browser (localStorage) and forwarded per-request via the X-LLM-Token header.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2087,7 +2099,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"llm_url\": \"https://api.openai.com\",\n  \"llm_token\": \"sk-proj-your-token-here\",\n  \"llm_model\": \"gpt-4o\",\n  \"llm_system_prompt\": \"You are Aria, the Arcadia Finance AI assistant.\"\n}",
+              "raw": "{\n  \"llm_url\": \"https://api.openai.com\",\n  \"llm_model\": \"gpt-4o\",\n  \"llm_system_prompt\": \"You are Aria, the Arcadia Finance AI assistant.\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2118,7 +2130,7 @@
                     "config"
                   ]
                 },
-                "description": "Updates the LLM configuration used by the Aria chatbot. All fields are optional.",
+                "description": "Updates the LLM configuration used by the Aria chatbot. All fields are optional. NOTE: llm_token is NOT accepted here — the LLM API token is stored exclusively in the browser (localStorage) and forwarded per-request via the X-LLM-Token header.",
                 "auth": {
                   "type": "bearer",
                   "bearer": [
@@ -2131,7 +2143,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"llm_url\": \"https://api.openai.com\",\n  \"llm_token\": \"sk-proj-your-token-here\",\n  \"llm_model\": \"gpt-4o\",\n  \"llm_system_prompt\": \"You are Aria, the Arcadia Finance AI assistant.\"\n}",
+                  "raw": "{\n  \"llm_url\": \"https://api.openai.com\",\n  \"llm_model\": \"gpt-4o\",\n  \"llm_system_prompt\": \"You are Aria, the Arcadia Finance AI assistant.\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2170,7 +2182,7 @@
                     "config"
                   ]
                 },
-                "description": "Updates the LLM configuration used by the Aria chatbot. All fields are optional.",
+                "description": "Updates the LLM configuration used by the Aria chatbot. All fields are optional. NOTE: llm_token is NOT accepted here — the LLM API token is stored exclusively in the browser (localStorage) and forwarded per-request via the X-LLM-Token header.",
                 "auth": {
                   "type": "bearer",
                   "bearer": [
@@ -2183,7 +2195,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"llm_url\": \"https://api.openai.com\",\n  \"llm_token\": \"sk-proj-your-token-here\",\n  \"llm_model\": \"gpt-4o\",\n  \"llm_system_prompt\": \"You are Aria, the Arcadia Finance AI assistant.\"\n}",
+                  "raw": "{\n  \"llm_url\": \"https://api.openai.com\",\n  \"llm_model\": \"gpt-4o\",\n  \"llm_system_prompt\": \"You are Aria, the Arcadia Finance AI assistant.\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2206,13 +2218,23 @@
     },
     {
       "name": "Chatbot",
-      "description": "Aria AI assistant (proxies to configured LLM)",
+      "description": "Aria AI assistant — proxies to configured LLM with OpenAI-style tool calling.\nTools: get_stock_price (live stock quote via MCP), get_account_balance (user's own DB balances).\nOptional F5 AI Security (CalypsoAI) prompt + response scanning.",
       "item": [
         {
-          "name": "Chat with Aria  POST /api/chat",
+          "name": "Chat – Account Balance (savings)  POST /api/chat",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "X-LLM-Token",
+                "value": "{{llm_token}}",
+                "description": "LLM API key (from browser localStorage — never stored server-side)"
+              },
+              {
+                "key": "X-F5AISEC-Token",
+                "value": "{{f5aisec_token}}",
+                "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -2228,7 +2250,7 @@
                 "chat"
               ]
             },
-            "description": "Sends a conversation to the configured LLM and returns Aria reply.\nThe system prompt is prepended automatically from stored configuration.\nSupported backends: Azure OpenAI, OpenAI, Ollama, LM Studio, vLLM.",
+            "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2241,7 +2263,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is my current balance?\"\n    }\n  ]\n}",
+              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"How much do I have in my savings account?\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2251,13 +2273,23 @@
           },
           "response": [
             {
-              "name": "200 - Aria replies",
+              "name": "200 – Aria replies (tool result)",
               "status": "OK",
               "code": 200,
               "originalRequest": {
                 "method": "POST",
                 "header": [
                   {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
                     "key": "Content-Type",
                     "value": "application/json"
                   }
@@ -2272,7 +2304,7 @@
                     "chat"
                   ]
                 },
-                "description": "Sends a conversation to the configured LLM and returns Aria reply.\nThe system prompt is prepended automatically from stored configuration.\nSupported backends: Azure OpenAI, OpenAI, Ollama, LM Studio, vLLM.",
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
                 "auth": {
                   "type": "bearer",
                   "bearer": [
@@ -2285,7 +2317,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is my current balance?\"\n    }\n  ]\n}",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"How much do I have in my savings account?\"\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2300,67 +2332,211 @@
                 }
               ],
               "_postman_previewlanguage": "json",
-              "body": "{\n  \"reply\": \"Hello! I am Aria, your Arcadia Finance assistant. Let me check your balance for you...\"\n}"
+              "body": "{\n  \"reply\": \"Your savings account (FR7601234001002) currently holds \\u20ac35,200.00.\",\n  \"configured\": true\n}"
             },
             {
-              "name": "502 - LLM backend error",
+              "name": "200 – F5 AI Security blocked prompt",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"How much do I have in my savings account?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"\\ud83d\\udee1\\ufe0f Your message was blocked by F5 AI Security.\",\n  \"blocked\": true,\n  \"configured\": true\n}"
+            },
+            {
+              "name": "200 – F5 AI Security blocked response",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"How much do I have in my savings account?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"\\ud83d\\udee1\\ufe0f The assistant's response was blocked by F5 AI Security.\",\n  \"blocked\": true,\n  \"configured\": true\n}"
+            },
+            {
+              "name": "200 – LLM not configured",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"How much do I have in my savings account?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"I'm not configured yet. Please go to Settings > LLM Config and enter your LLM URL and API token.\",\n  \"configured\": false\n}"
+            },
+            {
+              "name": "502 – LLM backend error",
               "status": "Bad Gateway",
               "code": 502,
               "originalRequest": {
                 "method": "POST",
                 "header": [
                   {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/chat",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "chat"
-                  ]
-                },
-                "description": "Sends a conversation to the configured LLM and returns Aria reply.\nThe system prompt is prepended automatically from stored configuration.\nSupported backends: Azure OpenAI, OpenAI, Ollama, LM Studio, vLLM.",
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    {
-                      "key": "token",
-                      "value": "{{token}}",
-                      "type": "string"
-                    }
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is my current balance?\"\n    }\n  ]\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "_postman_previewlanguage": "json",
-              "body": "{\n  \"error\": \"LLM backend returned an error\"\n}"
-            },
-            {
-              "name": "504 - LLM request timed out",
-              "status": "Gateway Timeout",
-              "code": 504,
-              "originalRequest": {
-                "method": "POST",
-                "header": [
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
                   {
                     "key": "Content-Type",
                     "value": "application/json"
@@ -2376,7 +2552,7 @@
                     "chat"
                   ]
                 },
-                "description": "Sends a conversation to the configured LLM and returns Aria reply.\nThe system prompt is prepended automatically from stored configuration.\nSupported backends: Azure OpenAI, OpenAI, Ollama, LM Studio, vLLM.",
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
                 "auth": {
                   "type": "bearer",
                   "bearer": [
@@ -2389,7 +2565,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is my current balance?\"\n    }\n  ]\n}",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"How much do I have in my savings account?\"\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2404,7 +2580,1347 @@
                 }
               ],
               "_postman_previewlanguage": "json",
-              "body": "{\n  \"error\": \"LLM request timed out (60s limit)\"\n}"
+              "body": "{\n  \"error\": \"LLM backend returned an error\",\n  \"configured\": true\n}"
+            },
+            {
+              "name": "504 – LLM request timed out",
+              "status": "Gateway Timeout",
+              "code": 504,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"How much do I have in my savings account?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"LLM request timed out (60s limit)\",\n  \"configured\": true\n}"
+            }
+          ]
+        },
+        {
+          "name": "Chat – Account Balance (all accounts)  POST /api/chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-LLM-Token",
+                "value": "{{llm_token}}",
+                "description": "LLM API key (from browser localStorage — never stored server-side)"
+              },
+              {
+                "key": "X-F5AISEC-Token",
+                "value": "{{f5aisec_token}}",
+                "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "chat"
+              ]
+            },
+            "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What are all my account balances?\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 – Aria replies (tool result)",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What are all my account balances?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"Your savings account (FR7601234001002) currently holds \\u20ac35,200.00.\",\n  \"configured\": true\n}"
+            },
+            {
+              "name": "200 – F5 AI Security blocked prompt",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What are all my account balances?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"\\ud83d\\udee1\\ufe0f Your message was blocked by F5 AI Security.\",\n  \"blocked\": true,\n  \"configured\": true\n}"
+            },
+            {
+              "name": "200 – F5 AI Security blocked response",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What are all my account balances?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"\\ud83d\\udee1\\ufe0f The assistant's response was blocked by F5 AI Security.\",\n  \"blocked\": true,\n  \"configured\": true\n}"
+            },
+            {
+              "name": "200 – LLM not configured",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What are all my account balances?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"I'm not configured yet. Please go to Settings > LLM Config and enter your LLM URL and API token.\",\n  \"configured\": false\n}"
+            },
+            {
+              "name": "502 – LLM backend error",
+              "status": "Bad Gateway",
+              "code": 502,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What are all my account balances?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"LLM backend returned an error\",\n  \"configured\": true\n}"
+            },
+            {
+              "name": "504 – LLM request timed out",
+              "status": "Gateway Timeout",
+              "code": 504,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What are all my account balances?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"LLM request timed out (60s limit)\",\n  \"configured\": true\n}"
+            }
+          ]
+        },
+        {
+          "name": "Chat – Stock Price (FFIV)  POST /api/chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-LLM-Token",
+                "value": "{{llm_token}}",
+                "description": "LLM API key (from browser localStorage — never stored server-side)"
+              },
+              {
+                "key": "X-F5AISEC-Token",
+                "value": "{{f5aisec_token}}",
+                "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "chat"
+              ]
+            },
+            "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is the current price of FFIV?\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 – Aria replies (tool result)",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is the current price of FFIV?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"Your savings account (FR7601234001002) currently holds \\u20ac35,200.00.\",\n  \"configured\": true\n}"
+            },
+            {
+              "name": "200 – F5 AI Security blocked prompt",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is the current price of FFIV?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"\\ud83d\\udee1\\ufe0f Your message was blocked by F5 AI Security.\",\n  \"blocked\": true,\n  \"configured\": true\n}"
+            },
+            {
+              "name": "200 – F5 AI Security blocked response",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is the current price of FFIV?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"\\ud83d\\udee1\\ufe0f The assistant's response was blocked by F5 AI Security.\",\n  \"blocked\": true,\n  \"configured\": true\n}"
+            },
+            {
+              "name": "200 – LLM not configured",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is the current price of FFIV?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"I'm not configured yet. Please go to Settings > LLM Config and enter your LLM URL and API token.\",\n  \"configured\": false\n}"
+            },
+            {
+              "name": "502 – LLM backend error",
+              "status": "Bad Gateway",
+              "code": 502,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is the current price of FFIV?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"LLM backend returned an error\",\n  \"configured\": true\n}"
+            },
+            {
+              "name": "504 – LLM request timed out",
+              "status": "Gateway Timeout",
+              "code": 504,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What is the current price of FFIV?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"LLM request timed out (60s limit)\",\n  \"configured\": true\n}"
+            }
+          ]
+        },
+        {
+          "name": "Chat – General Question  POST /api/chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-LLM-Token",
+                "value": "{{llm_token}}",
+                "description": "LLM API key (from browser localStorage — never stored server-side)"
+              },
+              {
+                "key": "X-F5AISEC-Token",
+                "value": "{{f5aisec_token}}",
+                "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "chat"
+              ]
+            },
+            "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What services does Arcadia Finance offer?\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 – Aria replies (tool result)",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What services does Arcadia Finance offer?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"Your savings account (FR7601234001002) currently holds \\u20ac35,200.00.\",\n  \"configured\": true\n}"
+            },
+            {
+              "name": "200 – F5 AI Security blocked prompt",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What services does Arcadia Finance offer?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"\\ud83d\\udee1\\ufe0f Your message was blocked by F5 AI Security.\",\n  \"blocked\": true,\n  \"configured\": true\n}"
+            },
+            {
+              "name": "200 – F5 AI Security blocked response",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What services does Arcadia Finance offer?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"\\ud83d\\udee1\\ufe0f The assistant's response was blocked by F5 AI Security.\",\n  \"blocked\": true,\n  \"configured\": true\n}"
+            },
+            {
+              "name": "200 – LLM not configured",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What services does Arcadia Finance offer?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"reply\": \"I'm not configured yet. Please go to Settings > LLM Config and enter your LLM URL and API token.\",\n  \"configured\": false\n}"
+            },
+            {
+              "name": "502 – LLM backend error",
+              "status": "Bad Gateway",
+              "code": 502,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What services does Arcadia Finance offer?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"LLM backend returned an error\",\n  \"configured\": true\n}"
+            },
+            {
+              "name": "504 – LLM request timed out",
+              "status": "Gateway Timeout",
+              "code": 504,
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-LLM-Token",
+                    "value": "{{llm_token}}",
+                    "description": "LLM API key (from browser localStorage — never stored server-side)"
+                  },
+                  {
+                    "key": "X-F5AISEC-Token",
+                    "value": "{{f5aisec_token}}",
+                    "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "chat"
+                  ]
+                },
+                "description": "Sends a conversation to the configured LLM and returns Aria's reply.\nThe system prompt is prepended automatically from app_config.\n\nTool calling (CHAT_TOOLS — tool_choice: 'auto'):\n  • get_stock_price     — questions about stock price/value/quote\n                          → stock-service → MCP → Yahoo Finance\n  • get_account_balance — questions about the user's own balance(s)\n                          → DB query scoped to g.current_user_id\n                          optional account_type: checking/savings/investment\n\nWhen a tool is called the server executes it and makes a second LLM\ncall; the browser receives only the final natural-language reply.\n\nF5 AI Security guardrails (optional):\n  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n  and reply are scanned. Blocked → 200 with blocked:true in response.\n\nHeaders:\n  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"What services does Arcadia Finance offer?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"error\": \"LLM request timed out (60s limit)\",\n  \"configured\": true\n}"
             }
           ]
         }

@@ -269,7 +269,9 @@ components:
       properties:
         messages:
           type: array
-          description: Conversation history (system prompt prepended by server)
+          description: >
+            Conversation history sent by the browser. The server prepends the
+            system prompt automatically. Roles must alternate user / assistant.
           items:
             type: object
             required: [role, content]
@@ -286,13 +288,27 @@ components:
       properties:
         reply:
           type: string
-          example: Your checking account balance is 12450.75 EUR.
+          description: >
+            Natural-language reply from Aria. Present on every 200 response,
+            including blocked replies (see `blocked` field).
+          example: Your savings account (FR7601234001002) currently holds €35,200.00.
         configured:
           type: boolean
+          description: >
+            False when no LLM URL has been configured yet (reply will contain
+            a setup prompt). True in all other cases, including errors and
+            blocked responses.
           example: true
+        blocked:
+          type: boolean
+          description: >
+            Present and true when F5 AI Security (CalypsoAI) blocked either
+            the user prompt or the LLM response. The `reply` field contains
+            the shield message shown to the user.
+          example: false
         error:
           type: string
-          description: Present only when the LLM call failed
+          description: Present only when the LLM call or a scan failed.
 
     Error:
       type: object
@@ -1001,31 +1017,122 @@ paths:
   /api/chat:
     post:
       tags: [Chatbot]
-      summary: Chat with Aria (LLM proxy)
+      summary: Chat with Aria (LLM proxy with tool calling)
       description: |
-        Sends a conversation to the configured LLM and returns Aria reply.
-        The system prompt is prepended automatically from stored configuration.
-        Supported: Azure OpenAI, OpenAI, Ollama, LM Studio, vLLM.
+        Sends a conversation to the configured LLM and returns Aria's reply.
+        The system prompt is prepended automatically from `app_config.chatbot_system_prompt`.
+        Supported backends: Azure OpenAI, OpenAI, Ollama, LM Studio, vLLM — any server
+        compatible with `/v1/chat/completions` and OpenAI-style function / tool calling.
+
+        **Tool calling — CHAT_TOOLS**
+
+        Every request is sent with `tool_choice: "auto"` and two registered tools.
+        The LLM selects automatically:
+
+        - `get_stock_price` — questions about stock price/value/quote →
+          calls `stock-service` → MCP → Yahoo Finance.
+        - `get_account_balance` — questions about the user's own balance(s) →
+          DB query scoped to `g.current_user_id`. Optional `account_type` filter
+          (`checking`, `savings`, `investment`). Ownership is always enforced
+          server-side; the LLM cannot request another user's balances.
+
+        When a tool is called, the server executes it, appends the result to the
+        conversation, and makes a second LLM call to produce the final reply.
+        The browser always receives only the final natural-language reply.
+
+        **F5 AI Security (CalypsoAI) guardrails** (optional)
+
+        When `calypso_enabled` is true and `X-F5AISEC-Token` is present, the
+        user prompt is scanned before the first LLM call and the final reply is
+        scanned after. If either scan does not return `cleared`, a 200 response
+        is returned with `blocked: true` and a shield message in `reply`.
+
+        **Browser-only token headers** (never persisted server-side):
+        `X-LLM-Token` (LLM API key) and `X-F5AISEC-Token` (CalypsoAI token).
       operationId: chat
       security:
         - BearerAuth: []
+      parameters:
+        - name: X-LLM-Token
+          in: header
+          required: false
+          description: >
+            LLM API token stored in browser localStorage. Forwarded per-request
+            and used only in-memory to authenticate the outbound LLM call.
+            Never written to the database or disk.
+          schema:
+            type: string
+        - name: X-F5AISEC-Token
+          in: header
+          required: false
+          description: >
+            F5 AI Security (CalypsoAI) token stored in browser localStorage.
+            Required only when `calypso_enabled` is true. Used only in-memory.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/ChatRequest"
-            example:
-              messages:
-                - role: user
-                  content: What is my current balance?
+            examples:
+              balance_savings:
+                summary: Ask about savings balance (triggers get_account_balance)
+                value:
+                  messages:
+                    - role: user
+                      content: How much do I have in my savings account?
+              balance_all:
+                summary: Ask about all balances (triggers get_account_balance, no filter)
+                value:
+                  messages:
+                    - role: user
+                      content: What are all my account balances?
+              stock_price:
+                summary: Ask for a stock price (triggers get_stock_price)
+                value:
+                  messages:
+                    - role: user
+                      content: What is the current price of FFIV?
+              general:
+                summary: General question (no tool call — single LLM round trip)
+                value:
+                  messages:
+                    - role: user
+                      content: What services does Arcadia Finance offer?
       responses:
         "200":
-          description: LLM reply (or not-configured notice if LLM not set up)
+          description: >
+            Aria's reply. Also returned (with `blocked: true`) when F5 AI Security
+            blocks the prompt or response, and (with `configured: false`) when no
+            LLM URL has been configured.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChatResponse"
+              examples:
+                balance_reply:
+                  summary: get_account_balance tool — savings account
+                  value:
+                    reply: "Your savings account (FR7601234001002) currently holds €35,200.00."
+                    configured: true
+                stock_reply:
+                  summary: get_stock_price tool — FFIV
+                  value:
+                    reply: "F5 Inc. (FFIV) is currently trading at $285.42, up $3.67 (+1.30%) today."
+                    configured: true
+                blocked:
+                  summary: F5 AI Security blocked the prompt or response
+                  value:
+                    reply: "🛡️ Your message was blocked by F5 AI Security."
+                    blocked: true
+                    configured: true
+                not_configured:
+                  summary: LLM URL not yet configured
+                  value:
+                    reply: "I'm not configured yet. Please go to Settings > LLM Config and enter your LLM URL and API token."
+                    configured: false
         "401":
           description: Not authenticated
           content:
@@ -1033,7 +1140,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "502":
-          description: LLM backend returned an error
+          description: LLM backend error or F5 AI Security scan failure
           content:
             application/json:
               schema:

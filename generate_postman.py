@@ -436,28 +436,123 @@ def build_config():
 # Chatbot folder
 # ---------------------------------------------------------------------------
 
+def _chat_headers():
+    """Standard headers for /api/chat: LLM token + F5 AI Security token."""
+    return [
+        {"key": "X-LLM-Token",     "value": "{{llm_token}}",
+         "description": "LLM API key (from browser localStorage — never stored server-side)"},
+        {"key": "X-F5AISEC-Token", "value": "{{f5aisec_token}}",
+         "description": "F5 AI Security (CalypsoAI) token (optional, browser localStorage only)"},
+    ]
+
+
+def build_request_with_extra_headers(method, path, desc, body=None, extra_headers=None, auth=True):
+    """Like build_request() but merges additional custom headers."""
+    node = build_request(method, path, desc, body=body, auth=auth)
+    if extra_headers:
+        node["request"]["header"] = extra_headers + node["request"].get("header", [])
+    return node
+
+
 def build_chatbot():
-    chat_node = build_request(
-        "POST", "/api/chat",
-        "Sends a conversation to the configured LLM and returns Aria reply.\n"
-        "The system prompt is prepended automatically from stored configuration.\n"
-        "Supported backends: Azure OpenAI, OpenAI, Ollama, LM Studio, vLLM.",
-        body={"messages": [{"role": "user", "content": "What is my current balance?"}]}
+    desc = (
+        "Sends a conversation to the configured LLM and returns Aria's reply.\n"
+        "The system prompt is prepended automatically from app_config.\n\n"
+        "Tool calling (CHAT_TOOLS — tool_choice: 'auto'):\n"
+        "  • get_stock_price     — questions about stock price/value/quote\n"
+        "                          → stock-service → MCP → Yahoo Finance\n"
+        "  • get_account_balance — questions about the user's own balance(s)\n"
+        "                          → DB query scoped to g.current_user_id\n"
+        "                          optional account_type: checking/savings/investment\n\n"
+        "When a tool is called the server executes it and makes a second LLM\n"
+        "call; the browser receives only the final natural-language reply.\n\n"
+        "F5 AI Security guardrails (optional):\n"
+        "  If calypso_enabled=true and X-F5AISEC-Token is present, the prompt\n"
+        "  and reply are scanned. Blocked → 200 with blocked:true in response.\n\n"
+        "Headers:\n"
+        "  X-LLM-Token     — LLM API key (browser localStorage, never persisted)\n"
+        "  X-F5AISEC-Token — CalypsoAI token (browser localStorage, never persisted)"
     )
+
+    # ── Request 1: ask about savings balance (triggers get_account_balance) ──
+    savings_node = build_request_with_extra_headers(
+        "POST", "/api/chat", desc,
+        body={"messages": [{"role": "user", "content": "How much do I have in my savings account?"}]},
+        extra_headers=_chat_headers(),
+    )
+
+    # ── Request 2: ask about all balances (get_account_balance, no filter) ───
+    all_balances_node = build_request_with_extra_headers(
+        "POST", "/api/chat", desc,
+        body={"messages": [{"role": "user", "content": "What are all my account balances?"}]},
+        extra_headers=_chat_headers(),
+    )
+
+    # ── Request 3: ask about a stock price (triggers get_stock_price) ────────
+    stock_node = build_request_with_extra_headers(
+        "POST", "/api/chat", desc,
+        body={"messages": [{"role": "user", "content": "What is the current price of FFIV?"}]},
+        extra_headers=_chat_headers(),
+    )
+
+    # ── Request 4: general question (no tool — single LLM round trip) ────────
+    general_node = build_request_with_extra_headers(
+        "POST", "/api/chat", desc,
+        body={"messages": [{"role": "user", "content": "What services does Arcadia Finance offer?"}]},
+        extra_headers=_chat_headers(),
+    )
+
+    def responses_for(node):
+        return [
+            make_resp("200 – Aria replies (tool result)", 200, "OK", {
+                "reply": "Your savings account (FR7601234001002) currently holds €35,200.00.",
+                "configured": True,
+            }, node["request"]),
+            make_resp("200 – F5 AI Security blocked prompt", 200, "OK", {
+                "reply": "🛡️ Your message was blocked by F5 AI Security.",
+                "blocked": True,
+                "configured": True,
+            }, node["request"]),
+            make_resp("200 – F5 AI Security blocked response", 200, "OK", {
+                "reply": "🛡️ The assistant's response was blocked by F5 AI Security.",
+                "blocked": True,
+                "configured": True,
+            }, node["request"]),
+            make_resp("200 – LLM not configured", 200, "OK", {
+                "reply": "I'm not configured yet. Please go to Settings > LLM Config and enter your LLM URL and API token.",
+                "configured": False,
+            }, node["request"]),
+            make_resp("502 – LLM backend error", 502, "Bad Gateway",
+                      {"error": "LLM backend returned an error", "configured": True}, node["request"]),
+            make_resp("504 – LLM request timed out", 504, "Gateway Timeout",
+                      {"error": "LLM request timed out (60s limit)", "configured": True}, node["request"]),
+        ]
+
     return {
         "name": "Chatbot",
-        "description": "Aria AI assistant (proxies to configured LLM)",
+        "description": (
+            "Aria AI assistant — proxies to configured LLM with OpenAI-style tool calling.\n"
+            "Tools: get_stock_price (live stock quote via MCP), "
+            "get_account_balance (user's own DB balances).\n"
+            "Optional F5 AI Security (CalypsoAI) prompt + response scanning."
+        ),
         "item": [
-            make_item("Chat with Aria  POST /api/chat", chat_node, [
-                make_resp("200 - Aria replies", 200, "OK", {
-                    "reply": "Hello! I am Aria, your Arcadia Finance assistant. "
-                             "Let me check your balance for you..."
-                }, chat_node["request"]),
-                make_resp("502 - LLM backend error", 502, "Bad Gateway",
-                          {"error": "LLM backend returned an error"}, chat_node["request"]),
-                make_resp("504 - LLM request timed out", 504, "Gateway Timeout",
-                          {"error": "LLM request timed out (60s limit)"}, chat_node["request"])
-            ])
+            make_item(
+                "Chat – Account Balance (savings)  POST /api/chat",
+                savings_node, responses_for(savings_node)
+            ),
+            make_item(
+                "Chat – Account Balance (all accounts)  POST /api/chat",
+                all_balances_node, responses_for(all_balances_node)
+            ),
+            make_item(
+                "Chat – Stock Price (FFIV)  POST /api/chat",
+                stock_node, responses_for(stock_node)
+            ),
+            make_item(
+                "Chat – General Question  POST /api/chat",
+                general_node, responses_for(general_node)
+            ),
         ]
     }
 
@@ -487,8 +582,12 @@ def main():
             "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
         },
         "variable": [
-            {"key": "base_url", "value": "http://localhost:8080", "type": "string"},
-            {"key": "token",    "value": "",                       "type": "string"}
+            {"key": "base_url",      "value": "http://localhost:8080", "type": "string"},
+            {"key": "token",         "value": "",                       "type": "string"},
+            {"key": "llm_token",     "value": "",                       "type": "string",
+             "description": "LLM API key — paste here or set via pre-request script. Never persisted server-side."},
+            {"key": "f5aisec_token", "value": "",                       "type": "string",
+             "description": "F5 AI Security (CalypsoAI) token — optional. Never persisted server-side."},
         ],
         "auth": bearer(),
         "item": [
