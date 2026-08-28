@@ -121,7 +121,15 @@ const API = {
       .finally(() => _clearJwt()),
 
   // ── Protected (require valid JWT or active session) ──────────────────────────
-  me:         ()           => apiFetch("/api/me"),
+  /**
+   * Fetch the current user profile.
+   * Returns null (without hitting the server) when no JWT is stored,
+   * so unauthenticated pages (e.g. the home/login page) never produce a 401.
+   */
+  me: () => {
+    if (!_getJwt()) return Promise.resolve(null);
+    return apiFetch("/api/me");
+  },
   accounts:   (userId)     => apiFetch(`/api/accounts${userId ? "?user_id=" + userId : ""}`),
   transfer:   (body)       => apiFetch("/api/transfer",  { method: "POST", body: JSON.stringify(body) }),
   transfers:  (account)    => apiFetch(`/api/transfers?account=${encodeURIComponent(account)}`),

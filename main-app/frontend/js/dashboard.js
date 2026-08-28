@@ -2,6 +2,7 @@
 document.addEventListener("DOMContentLoaded", async () => {
   let currentUser = null;
   try { currentUser = await API.me(); } catch { window.location.href = "/"; return; }
+  if (!currentUser) { window.location.href = "/"; return; }
 
   const initials = (currentUser.name[0] + currentUser.surname[0]).toUpperCase();
   document.querySelectorAll(".user-initials").forEach(el => el.textContent = initials);

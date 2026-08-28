@@ -10,7 +10,7 @@
  */
 document.addEventListener("DOMContentLoaded", async () => {
   // Auth guard
-  try { await API.me(); } catch { window.location.href = "/"; return; }
+  try { const _me = await API.me(); if (!_me) { window.location.href = "/"; return; } } catch { window.location.href = "/"; return; }
 
   document.getElementById("logout-btn")?.addEventListener("click", async () => {
     await API.logout(); window.location.href = "/";
