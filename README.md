@@ -453,6 +453,132 @@ Non-secret settings (`llm_url`, `llm_model`, `chatbot_system_prompt`, `calypso_e
 
 ---
 
+## 🚦 Traffic Generators
+
+Three standalone Python scripts live in `traffic-gen/`. They require **Python 3.7+ only** — no `pip install` needed, pure stdlib.
+
+All scripts share the same conventions:
+- Every request carries `x-traffic-gen: allowed` (used as a WAF allow-list marker).
+- Every request carries a fresh random `xff` IP and `_imp_apg_r_` cookie per call.
+- Use `--help` on any script to see all options.
+
+---
+
+### 1. `simulate_traffic.py` — General traffic generator
+
+Simulates complete browser sessions and/or synthetic attack probes. Each session authenticates as a real user and replays the full SPA request flow.
+
+```bash
+# Good traffic only (default) — 10 sessions, random users
+python3 traffic-gen/simulate_traffic.py --url http://localhost
+
+# WAF attack probes only (A1–A6, no good traffic)
+python3 traffic-gen/simulate_traffic.py --url http://localhost --mode attacks
+
+# Bot-protection probes only (no x-traffic-gen marker)
+python3 traffic-gen/simulate_traffic.py --url http://localhost --mode bots
+
+# Mixed modes — space or comma separated
+python3 traffic-gen/simulate_traffic.py --url http://localhost --mode good-traffic attacks
+python3 traffic-gen/simulate_traffic.py --url http://localhost --mode attacks,bots
+
+# All three modes, 50 loops, 5 parallel threads
+python3 traffic-gen/simulate_traffic.py --url http://localhost \
+  --mode good-traffic attacks bots --loops 50 --threads 5
+```
+
+#### CLI options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--url` | `http://localhost` | Base URL of the main-app |
+| `--loops` | `10` | Number of sessions / attack rounds |
+| `--delay` | `1.5` | Base inter-request delay in seconds (±50% jitter) |
+| `--threads` | `1` | Parallel sessions for burst traffic |
+| `--user` | random | Pin all sessions to one user (`alice`, `thomas`, `sophie`, `lucas`) |
+| `--mode` | `good-traffic` | One or more of: `good-traffic`, `attacks`, `bots` |
+
+#### Good-traffic session (15 steps per session)
+
+| # | Method | Endpoint |
+|---|--------|----------|
+| 1 | `POST` | `/api/login` |
+| 2 | `GET` | `/api/me` |
+| 3 | `GET` | `/api/accounts` |
+| 4 | `GET` | `/api/transfers?account=<acc>` |
+| 5 | `GET` | `/api/users` |
+| 6 | `GET` | `/api/users/<id>` — random ID from 1–104 (BOLA surface) |
+| 7 | `GET` | `/api/config` |
+| 8 | `GET` | `/api/stocks/search?q=<ticker>` |
+| 9 | `GET` | `/api/stocks/quote?ticker=<ticker>` |
+| 10 | `GET` | `/api/stocks/history?ticker=<ticker>&period=<period>` |
+| 11 | `GET` | `/api/stocks/portfolio` |
+| 12 | `GET` | `/api/stocks/orders` |
+| 13 | `POST` | `/api/stocks/buy` — tiny fractional qty |
+| 14 | `POST` | `/api/transfer` — small random amount |
+| 15 | `POST` | `/api/logout` |
+
+#### Attack probes (`--mode attacks`) — 6 probes per round
+
+| ID | Method | Endpoint | Attack type |
+|----|--------|----------|-------------|
+| A1 | `POST` | `/logon.aspx` | Credential stuffing |
+| A2 | `POST` | `/api/2.0/services/usermgmt/password/aiitzf` | Java XStream deserialization RCE |
+| A3 | `POST` | `/api/stocks` | Command injection — base64 reverse shell |
+| A4 | `POST` | `/actuator/gateway/routes/wgcmiami` | Spring Cloud Gateway SPEL RCE (CVE-2022-22947) |
+| A5 | `GET` | `/nette.micro/?callback=shell_exec&cmd=…` | PHP RCE via callback parameter |
+| A6 | `POST` | `/api/transfer` | SQL injection in `note` field (`' or 1=1#`) with forged JWT |
+
+#### Bot-protection probes (`--mode bots`) — 1 probe per round
+
+| ID | Method | Endpoint | Description |
+|----|--------|----------|-------------|
+| B1 | `POST` | `/api/login` | Automated login — **no** `x-traffic-gen` header, looks like a real unmarked bot |
+
+---
+
+### 2. `bola_user_scan.py` — BOLA baseline (one JWT per user)
+
+Sends 100 `GET /api/users/{id}` requests — one per BOLA target user (IDs 5–104). Each request is authenticated with a **unique JWT** minted for that specific user (`sub` = their own ID). Establishes a legitimate access baseline.
+
+```bash
+python3 traffic-gen/bola_user_scan.py --url http://localhost
+python3 traffic-gen/bola_user_scan.py --url http://localhost --delay 0.1
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--url` | `http://localhost` | Base URL of the main-app |
+| `--delay` | `0.3` | Delay between requests in seconds |
+
+Each JWT is signed with the real app secret (`arcadia-jwt-secret-2026`, HS256) and carries the correct `sub`, `username`, `iat`, `exp` — identical structure to tokens issued by `/api/login`.
+
+---
+
+### 3. `bola_user_attack.py` — BOLA attack (single JWT, 100 targets)
+
+Sends 100 `GET /api/users/{id}` requests using the **same JWT** (user ID 5 — Emma Martin) for every request. The path parameter increments from `/api/users/5` to `/api/users/104`, enumerating every other user's full profile (including password) — a textbook BOLA attack.
+
+```bash
+python3 traffic-gen/bola_user_attack.py --url http://localhost
+python3 traffic-gen/bola_user_attack.py --url http://localhost --delay 0.0
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--url` | `http://localhost` | Base URL of the main-app |
+| `--delay` | `0.3` | Delay between requests in seconds |
+
+The contrast with `bola_user_scan.py` is what makes this detectable: the JWT `sub` stays `5` across all 100 requests while the URL object ID changes on every call.
+
+---
+
+### BOLA target users
+
+100 users (IDs 5–104) are seeded in `db/init.sql` exclusively as BOLA targets — no bank accounts, no balances, no login capability. They follow the same `firstname.surname@arcadiafinance.com` pattern as the four real demo users.
+
+---
+
 ## ⚠️ Intentional Vulnerabilities (F5 Demo Surface)
 
 | Vulnerability | Location | Payload Example |
@@ -486,6 +612,10 @@ Non-secret settings (`llm_url`, `llm_model`, `chatbot_system_prompt`, `calypso_e
 ```
 ├── docker-compose.yml
 ├── openapi.yaml                # Full OpenAPI 3.0 spec (all endpoints)
+├── traffic-gen/
+│   ├── simulate_traffic.py     # General traffic generator (good-traffic / attacks / bots)
+│   ├── bola_user_scan.py       # BOLA baseline — 100 users, each with their own JWT
+│   └── bola_user_attack.py     # BOLA attack  — 100 targets, single JWT (user ID 5)
 ├── db/init.sql                 # Schema + seed (users, accounts, transfers, config,
 │                               #   stock_holdings, stock_orders, virtual accounts)
 ├── main-app/

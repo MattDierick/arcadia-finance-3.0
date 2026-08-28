@@ -444,17 +444,15 @@ def simulate_session(base_url, user, session_id, delay):
     if step("GET  /api/users", status, data): successes += 1
     time.sleep(delay * random.uniform(0.2, 0.8))
 
-    """
-    # 6. Fetch another user's profile (BOLA surface)
+    # 6. Fetch another user's profile (BOLA surface) — disabled, use bola_user_scan.py
     # IDs 1-4   = real app users (alice, thomas, sophie, lucas)
     # IDs 5-104 = BOLA target users seeded in db/init.sql
-    user_idx = USERS.index(user) + 1           # 1-based id of current user
-    bola_pool = [i for i in range(1, 105) if i != user_idx]
-    other_id  = random.choice(bola_pool)
-    status, data = _get(base_url, f"/api/users/{other_id}", token)
-    if step(f"GET  /api/users/{other_id} (BOLA surface)", status, data): successes += 1
-    time.sleep(delay * random.uniform(0.2, 0.8))
-    """
+    # user_idx = USERS.index(user) + 1           # 1-based id of current user
+    # bola_pool = [i for i in range(1, 105) if i != user_idx]
+    # other_id  = random.choice(bola_pool)
+    # status, data = _get(base_url, f"/api/users/{other_id}", token)
+    # if step(f"GET  /api/users/{other_id} (BOLA surface)", status, data): successes += 1
+    # time.sleep(delay * random.uniform(0.2, 0.8))
     
     # 7. App config
     status, data = _get(base_url, "/api/config", token)
