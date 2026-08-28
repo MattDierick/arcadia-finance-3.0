@@ -70,8 +70,8 @@ INSERT IGNORE INTO users (name, surname, email, phone, username, password) VALUE
 -- VIRTUAL ACCOUNTS (used internally)
 -- ─────────────────────────────────────────
 -- A system user is needed to hold virtual accounts
-INSERT IGNORE INTO users (id, name, surname, email, username, password) VALUES
-(99, 'System', 'Arcadia', 'system@arcadiafinance.internal', 'system', 'not-a-real-password');
+INSERT IGNORE INTO users (id, name, surname, email, phone, username, password) VALUES
+(99, 'System', 'Arcadia', 'system@arcadiafinance.internal', '+33 7 45 67 89 99', 'system', 'not-a-real-password');
 
 INSERT IGNORE INTO accounts (user_id, account_number, type, balance, currency) VALUES
 (99, 'STOCK-MARKET-VIRTUAL', 'investment', 999999999.00, 'USD');
