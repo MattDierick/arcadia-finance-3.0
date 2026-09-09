@@ -46,6 +46,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>
         <div class="balance-amount">${fmt(a.balance, a.currency)}</div>
         <div class="balance-currency">${a.currency}</div>
+        <button type="button" class="btn btn-ghost btn-sm mt-md w-full" onclick="event.stopPropagation(); showStatement('${a.account_number}')">📄 Statement</button>
       </div>`).join("");
   }
 
@@ -91,6 +92,52 @@ document.addEventListener("DOMContentLoaded", async () => {
     const s = document.getElementById("from-account"); if (s) s.value = num;
     loadTransfers(num, fmt2);
   };
+
+  // ── Account statement (⚠️ Shadow API demo — GET /api/accounts/{account}/statement) ──
+  const statementCard   = document.getElementById("statement-card");
+  const statementTbody  = document.getElementById("statement-tbody");
+  const statementMonth  = document.getElementById("statement-month");
+  let statementAccount  = null;
+
+  async function loadStatement(account, month) {
+    if (!statementTbody) return;
+    statementCard.classList.remove("hidden");
+    document.getElementById("statement-account-label").textContent = `Account ${account}`;
+    statementTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px"><div class="spinner" style="margin:auto"></div></td></tr>`;
+    try {
+      const s = await API.accountStatement(account, month);
+      document.getElementById("statement-opening").textContent = fmt2(s.opening_balance, s.currency);
+      document.getElementById("statement-closing").textContent = fmt2(s.closing_balance, s.currency);
+      document.getElementById("statement-credits").textContent = `+${fmt2(s.total_credits, s.currency)}`;
+      document.getElementById("statement-debits").textContent  = `-${fmt2(s.total_debits, s.currency)}`;
+      if (!s.transactions.length) {
+        statementTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-secondary)">No transactions for ${s.period}.</td></tr>`;
+        return;
+      }
+      statementTbody.innerHTML = s.transactions.map(t => `
+        <tr>
+          <td style="font-family:monospace;font-size:0.8rem">#${t.id}</td>
+          <td style="font-family:monospace;font-size:0.8rem">${t.from_account}</td>
+          <td style="font-family:monospace;font-size:0.8rem">${t.to_account}</td>
+          <td class="${t.direction === 'credit' ? 'text-success' : 'text-error'}" style="font-weight:700">${t.direction === 'credit' ? '+' : '-'}${fmt2(t.amount)}</td>
+          <td>${t.note || "<span style='color:var(--text-muted)'>—</span>"}</td>
+          <td><span class="badge badge-success">${t.status}</span></td>
+          <td style="color:var(--text-muted);font-size:0.8rem">${new Date(t.created_at).toLocaleDateString("fr-FR")}</td>
+        </tr>`).join("");
+    } catch {
+      statementTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:24px">Could not load statement.</td></tr>`;
+    }
+  }
+
+  window.showStatement = function(account) {
+    statementAccount = account;
+    statementCard.scrollIntoView({ behavior: "smooth", block: "center" });
+    loadStatement(account, statementMonth?.value);
+  };
+
+  statementMonth?.addEventListener("change", () => {
+    if (statementAccount) loadStatement(statementAccount, statementMonth.value);
+  });
 
   await loadAccounts();
   await populateFromSelect();

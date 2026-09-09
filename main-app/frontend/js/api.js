@@ -131,6 +131,13 @@ const API = {
     return apiFetch("/api/me");
   },
   accounts:   (userId)     => apiFetch(`/api/accounts${userId ? "?user_id=" + userId : ""}`),
+  /**
+   * Monthly account statement (opening/closing balance + transaction lines).
+   * ⚠️ Shadow API demo endpoint — implemented and used by the dashboard UI,
+   * but intentionally NOT declared in openapi.yaml.
+   */
+  accountStatement: (account, month) =>
+    apiFetch(`/api/accounts/${encodeURIComponent(account)}/statement${month ? "?month=" + encodeURIComponent(month) : ""}`),
   transfer:   (body)       => apiFetch("/api/transfer",  { method: "POST", body: JSON.stringify(body) }),
   transfers:  (account)    => apiFetch(`/api/transfers?account=${encodeURIComponent(account)}`),
   getConfig:  ()           => apiFetch("/api/config"),

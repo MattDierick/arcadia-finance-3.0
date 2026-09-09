@@ -239,6 +239,95 @@ def get_user(user_id):
     return jsonify(rows[0])
 
 
+@app.route("/api/accounts/<account_number>/statement")
+@require_auth
+def account_statement(account_number):
+    """
+    Return a monthly statement (opening/closing balance + transaction lines)
+    for the given account.  ?month=YYYY-MM, defaults to the current month.
+
+    ⚠️  SHADOW API DEMO SURFACE:
+        This endpoint is fully implemented, reachable, and used by the
+        dashboard UI — but it is INTENTIONALLY NOT documented in
+        openapi.yaml. It exists to demonstrate F5's Shadow API discovery:
+        real traffic hits an endpoint the published API contract doesn't
+        know about, which should raise an alert.
+
+    Note: like /api/users/<user_id>, there is no ownership check tying
+    account_number to g.current_user_id — any authenticated user can pull
+    a statement for any account number they can guess/enumerate.
+    """
+    month_param = request.args.get("month", "")
+    now = datetime.datetime.utcnow()
+    try:
+        period_start = datetime.datetime.strptime(month_param, "%Y-%m") if month_param \
+            else now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    except ValueError:
+        return jsonify({"error": "Invalid month format, expected YYYY-MM"}), 400
+
+    if period_start.month == 12:
+        period_end = period_start.replace(year=period_start.year + 1, month=1)
+    else:
+        period_end = period_start.replace(month=period_start.month + 1)
+
+    rows = db.query(
+        "SELECT id, account_number, type, balance, currency FROM accounts "
+        "WHERE account_number = %s",
+        (account_number,),
+    )
+    if not rows:
+        return jsonify({"error": f"Account {account_number} not found"}), 404
+    account = rows[0]
+
+    tx_rows = db.query(
+        "SELECT id, from_account, to_account, amount, note, status, created_at "
+        "FROM transfers "
+        "WHERE (from_account = %s OR to_account = %s) "
+        "AND created_at >= %s AND created_at < %s "
+        "ORDER BY created_at DESC",
+        (account_number, account_number, period_start, period_end),
+    )
+
+    total_credits = 0.0
+    total_debits = 0.0
+    transactions = []
+    for t in tx_rows:
+        amount = float(t["amount"])
+        is_credit = t["to_account"] == account_number
+        if is_credit:
+            total_credits += amount
+        else:
+            total_debits += amount
+        transactions.append({
+            "id": t["id"],
+            "from_account": t["from_account"],
+            "to_account": t["to_account"],
+            "direction": "credit" if is_credit else "debit",
+            "amount": amount,
+            "note": t["note"],
+            "status": t["status"],
+            "created_at": t["created_at"].isoformat() if t["created_at"] else None,
+        })
+
+    closing_balance = float(account["balance"])
+    net_change = round(total_credits - total_debits, 2)
+    opening_balance = round(closing_balance - net_change, 2)
+
+    return jsonify({
+        "account_number": account["account_number"],
+        "type": account["type"],
+        "currency": account["currency"],
+        "period": period_start.strftime("%Y-%m"),
+        "opening_balance": opening_balance,
+        "closing_balance": closing_balance,
+        "total_credits": round(total_credits, 2),
+        "total_debits": round(total_debits, 2),
+        "net_change": net_change,
+        "transaction_count": len(transactions),
+        "transactions": transactions,
+    })
+
+
 # ──────────────────────────────────────────────────────────────
 # TRANSFERS – proxy to transfer-service
 # ──────────────────────────────────────────────────────────────

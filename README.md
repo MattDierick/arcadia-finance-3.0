@@ -156,6 +156,8 @@ Then set `Authorization → Bearer Token` to `{{jwt_token}}` on every protected 
 | `POST` | `/api/stocks/buy` | 🔒 Purchase shares (debits a bank account) |
 
 > **Note:** The web browser automatically attaches the JWT (stored in `localStorage`) to every API call via the `Authorization: Bearer` header — no extra configuration needed.
+>
+> **Not shown above:** `GET /api/accounts/{account_number}/statement` is a real, working, authenticated endpoint used by the dashboard UI — but it is intentionally excluded from this table and from `openapi.yaml`. See [🕵️ Shadow API Demo](#-shadow-api-demo) below.
 
 ---
 
@@ -438,18 +440,19 @@ Non-secret settings (`llm_url`, `llm_model`, `chatbot_system_prompt`, `calypso_e
 2. Click a demo user button to auto-fill credentials, then **Sign In**.
 3. **Dashboard** shows all user accounts (checking/savings/investment) with balances and a Chart.js bar chart.
 4. Click any account card to load its **transfer history**.
-5. Use the **Transfer Form** to send money between accounts — balances update in real time.
-6. Click **Stocks** in the navigation bar to open the Stock Market page.
-7. Click a quick-pick chip (e.g. **NVDA**) or type any valid ticker — a live quote card and Chart.js price chart appear instantly.
-8. Use the period selector (5D / 1M / 3M / 6M / 1Y / 2Y / 5Y) to redraw the chart.
-9. Enter a share quantity → the **Estimated Total** updates in real time. Select a bank account to debit and click **Buy Shares**.
-10. **My Portfolio** and **Order History** tables refresh automatically after each purchase.
-11. Click the 💬 **Aria chatbot** FAB (bottom-right) to chat with the AI assistant.
-12. Navigate to **Settings** to configure the LLM URL + token.
-13. Ask Aria **"What is the current price of FFIV?"** — Aria calls the `get_stock_price` tool, fetches a live quote from the MCP-backed stock-service, and responds with price, daily change, and key metrics.
-14. Ask Aria **"How much do I have in my savings account?"** — Aria calls the `get_account_balance` tool, queries the database scoped to the logged-in user, and responds with the live balance.
-15. Ask Aria **"What are all my account balances?"** — Aria returns checking, savings, and investment balances in one reply.
-16. Use the 🌙/☀️ toggle in the navbar to switch between **dark and light mode** (preference persisted in `localStorage`).
+5. Click **📄 Statement** on any account card to load its monthly statement — this calls `GET /api/accounts/{account_number}/statement`, a real, working endpoint that is intentionally **not** documented in `openapi.yaml` (see [🕵️ Shadow API Demo](#-shadow-api-demo)).
+6. Use the **Transfer Form** to send money between accounts — balances update in real time.
+7. Click **Stocks** in the navigation bar to open the Stock Market page.
+8. Click a quick-pick chip (e.g. **NVDA**) or type any valid ticker — a live quote card and Chart.js price chart appear instantly.
+9. Use the period selector (5D / 1M / 3M / 6M / 1Y / 2Y / 5Y) to redraw the chart.
+10. Enter a share quantity → the **Estimated Total** updates in real time. Select a bank account to debit and click **Buy Shares**.
+11. **My Portfolio** and **Order History** tables refresh automatically after each purchase.
+12. Click the 💬 **Aria chatbot** FAB (bottom-right) to chat with the AI assistant.
+13. Navigate to **Settings** to configure the LLM URL + token.
+14. Ask Aria **"What is the current price of FFIV?"** — Aria calls the `get_stock_price` tool, fetches a live quote from the MCP-backed stock-service, and responds with price, daily change, and key metrics.
+15. Ask Aria **"How much do I have in my savings account?"** — Aria calls the `get_account_balance` tool, queries the database scoped to the logged-in user, and responds with the live balance.
+16. Ask Aria **"What are all my account balances?"** — Aria returns checking, savings, and investment balances in one reply.
+17. Use the 🌙/☀️ toggle in the navbar to switch between **dark and light mode** (preference persisted in `localStorage`).
 
 ---
 
@@ -498,7 +501,7 @@ python3 traffic-gen/simulate_traffic.py --url http://localhost \
 | `--user` | random | Pin all sessions to one user (`alice`, `thomas`, `sophie`, `lucas`) |
 | `--mode` | `good-traffic` | One or more of: `good-traffic`, `attacks`, `bots` |
 
-#### Good-traffic session (15 steps per session)
+#### Good-traffic session (16 steps per session)
 
 | # | Method | Endpoint |
 |---|--------|----------|
@@ -506,17 +509,18 @@ python3 traffic-gen/simulate_traffic.py --url http://localhost \
 | 2 | `GET` | `/api/me` |
 | 3 | `GET` | `/api/accounts` |
 | 4 | `GET` | `/api/transfers?account=<acc>` |
-| 5 | `GET` | `/api/users` |
-| 6 | `GET` | `/api/users/<id>` — random ID from 1–104 (BOLA surface) |
-| 7 | `GET` | `/api/config` |
-| 8 | `GET` | `/api/stocks/search?q=<ticker>` |
-| 9 | `GET` | `/api/stocks/quote?ticker=<ticker>` |
-| 10 | `GET` | `/api/stocks/history?ticker=<ticker>&period=<period>` |
-| 11 | `GET` | `/api/stocks/portfolio` |
-| 12 | `GET` | `/api/stocks/orders` |
-| 13 | `POST` | `/api/stocks/buy` — tiny fractional qty |
-| 14 | `POST` | `/api/transfer` — small random amount |
-| 15 | `POST` | `/api/logout` |
+| 5 | `GET` | `/api/accounts/<acc>/statement` — ⚠️ **shadow API, not in `openapi.yaml`** |
+| 6 | `GET` | `/api/users` |
+| 7 | `GET` | `/api/users/<id>` — random ID from 1–104 (BOLA surface) |
+| 8 | `GET` | `/api/config` |
+| 9 | `GET` | `/api/stocks/search?q=<ticker>` |
+| 10 | `GET` | `/api/stocks/quote?ticker=<ticker>` |
+| 11 | `GET` | `/api/stocks/history?ticker=<ticker>&period=<period>` |
+| 12 | `GET` | `/api/stocks/portfolio` |
+| 13 | `GET` | `/api/stocks/orders` |
+| 14 | `POST` | `/api/stocks/buy` — tiny fractional qty |
+| 15 | `POST` | `/api/transfer` — small random amount |
+| 16 | `POST` | `/api/logout` |
 
 #### Attack probes (`--mode attacks`) — 6 probes per round
 
@@ -576,6 +580,67 @@ The contrast with `bola_user_scan.py` is what makes this detectable: the JWT `su
 ### BOLA target users
 
 100 users (IDs 5–104) are seeded in `db/init.sql` exclusively as BOLA targets — no bank accounts, no balances, no login capability. They follow the same `firstname.surname@arcadiafinance.com` pattern as the four real demo users.
+
+---
+
+## 🕵️ Shadow API Demo
+
+Arcadia Finance ships one **shadow API**: a fully functional, authenticated
+endpoint that real users hit through the UI, but that was **never added to
+`openapi.yaml`** — exactly the scenario F5's API discovery / Shadow API
+detection is built to catch (a developer ships a feature and forgets to
+update the published API contract).
+
+| | |
+|---|---|
+| **Endpoint** | `GET /api/accounts/{account_number}/statement` |
+| **Container** | `main-app` (no new service/container — same Flask app as every other route) |
+| **Auth** | Same JWT/session auth as every other endpoint (`@require_auth`) |
+| **Implementation** | [`main-app/app.py`](main-app/app.py) — function `account_statement()` |
+| **UI trigger** | "📄 Statement" button on each account card in `dashboard.html` |
+| **Traffic generator** | Step 5 of every `simulate_traffic.py` session (see below) |
+| **In `openapi.yaml`?** | ❌ No — deliberately omitted |
+| **Extra vulnerability** | Same BOLA pattern as `/api/users/{id}`: no check that `account_number` belongs to the caller |
+
+It returns a monthly statement computed from the existing `accounts` and
+`transfers` tables (no schema change, no DB reset required):
+
+```bash
+# 1. Get a token (see Step 1 above)
+TOKEN="<paste access_token>"
+
+# 2. Call the shadow endpoint directly — it works, even though it's undocumented
+curl -s http://localhost/api/accounts/FR7601234001001/statement \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# Optional: pick a specific month
+curl -s "http://localhost/api/accounts/FR7601234001001/statement?month=2026-07" \
+  -H "Authorization: Bearer $TOKEN" | jq
+```
+
+Example response:
+
+```json
+{
+  "account_number": "FR7601234001001",
+  "type": "checking",
+  "currency": "EUR",
+  "period": "2026-07",
+  "opening_balance": 11250.75,
+  "closing_balance": 12450.75,
+  "total_credits": 1350.00,
+  "total_debits": 150.00,
+  "net_change": 1200.00,
+  "transaction_count": 3,
+  "transactions": [ { "id": 4, "from_account": "FR7601234001001", "to_account": "FR7601234004001", "direction": "debit", "amount": 350.0, "note": "Birthday gift", "status": "completed", "created_at": "2026-07-15T18:45:00" } ]
+}
+```
+
+**Demo flow:**
+1. Point your F5 API discovery / Shadow API tooling at the `openapi.yaml` spec + live traffic from `main-app` (port 80).
+2. Run `python3 traffic-gen/simulate_traffic.py --loops 10` (or click around the dashboard manually, hitting "📄 Statement").
+3. Show that `/api/accounts/{account}/statement` appears in observed traffic but has **no matching path** in the declared spec → shadow API alert.
+4. Optionally chain into the BOLA story: the endpoint also has no ownership check, so the "shadow" surface is also exploitable.
 
 ---
 

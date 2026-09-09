@@ -53,6 +53,26 @@
       <div class="section-header" style="margin-bottom:var(--space-md)"><div class="section-title">Balance Overview</div></div>
       <div style="height:260px"><canvas id="balance-chart"></canvas></div>
     </div>
+    <div class="card mb-lg hidden" id="statement-card">
+      <div class="section-header" style="margin-bottom:var(--space-md)">
+        <div><div class="section-title">Account Statement</div><div class="section-subtitle" id="statement-account-label">—</div></div>
+        <input class="form-input" id="statement-month" type="month" style="max-width:180px"/>
+      </div>
+      <div class="grid-2 mb-md" style="gap:var(--space-md)">
+        <div><div class="text-sm text-muted">Opening Balance</div><div id="statement-opening" style="font-family:var(--font-heading);font-weight:700">—</div></div>
+        <div><div class="text-sm text-muted">Closing Balance</div><div id="statement-closing" style="font-family:var(--font-heading);font-weight:700">—</div></div>
+        <div><div class="text-sm text-muted">Total Credits</div><div id="statement-credits" class="text-success" style="font-weight:700">—</div></div>
+        <div><div class="text-sm text-muted">Total Debits</div><div id="statement-debits" class="text-error" style="font-weight:700">—</div></div>
+      </div>
+      <div class="table-wrapper" style="max-height:320px;overflow-y:auto">
+        <table>
+          <thead><tr><th>#</th><th>From</th><th>To</th><th>Amount</th><th>Note</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="statement-tbody">
+            <tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:24px">Select an account to view its statement</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
     <div class="grid-2">
       <div class="card">
         <div class="section-title mb-md">New Transfer</div>

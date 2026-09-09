@@ -16,17 +16,18 @@ sequence of API calls that mirrors what the browser SPA does:
   2.  GET  /api/me
   3.  GET  /api/accounts
   4.  GET  /api/transfers?account=<checking>
-  5.  GET  /api/users          (list all users)
-  6.  GET  /api/users/<id>     (view another user – BOLA surface)
-  7.  GET  /api/config
-  8.  GET  /api/stocks/search?q=<ticker>
-  9.  GET  /api/stocks/quote?ticker=<ticker>
-  10. GET  /api/stocks/history?ticker=<ticker>&period=1mo
-  11. GET  /api/stocks/portfolio
-  12. GET  /api/stocks/orders
-  13. POST /api/stocks/buy     (small qty, best-effort)
-  14. POST /api/transfer       (small amount, best-effort)
-  15. POST /api/logout
+  5.  GET  /api/accounts/<checking>/statement   (⚠️ shadow API – not in openapi.yaml)
+  6.  GET  /api/users          (list all users)
+  7.  GET  /api/users/<id>     (view another user – BOLA surface)
+  8.  GET  /api/config
+  9.  GET  /api/stocks/search?q=<ticker>
+  10. GET  /api/stocks/quote?ticker=<ticker>
+  11. GET  /api/stocks/history?ticker=<ticker>&period=1mo
+  12. GET  /api/stocks/portfolio
+  13. GET  /api/stocks/orders
+  14. POST /api/stocks/buy     (small qty, best-effort)
+  15. POST /api/transfer       (small amount, best-effort)
+  16. POST /api/logout
 """
 
 import argparse
@@ -439,12 +440,17 @@ def simulate_session(base_url, user, session_id, delay):
     if step(f"GET  /api/transfers?account={checking}", status, data): successes += 1
     time.sleep(delay * random.uniform(0.3, 1.0))
 
-    # 5. List all users
+    # 5. Account statement (⚠️ SHADOW API — implemented & used, but absent from openapi.yaml)
+    status, data = _get(base_url, f"/api/accounts/{checking}/statement", token)
+    if step(f"GET  /api/accounts/{checking}/statement", status, data): successes += 1
+    time.sleep(delay * random.uniform(0.3, 1.0))
+
+    # 6. List all users
     status, data = _get(base_url, "/api/users", token)
     if step("GET  /api/users", status, data): successes += 1
     time.sleep(delay * random.uniform(0.2, 0.8))
 
-    # 6. Fetch another user's profile (BOLA surface) — disabled, use bola_user_scan.py
+    # 7. Fetch another user's profile (BOLA surface) — disabled, use bola_user_scan.py
     # IDs 1-4   = real app users (alice, thomas, sophie, lucas)
     # IDs 5-104 = BOLA target users seeded in db/init.sql
     # user_idx = USERS.index(user) + 1           # 1-based id of current user
@@ -454,22 +460,22 @@ def simulate_session(base_url, user, session_id, delay):
     # if step(f"GET  /api/users/{other_id} (BOLA surface)", status, data): successes += 1
     # time.sleep(delay * random.uniform(0.2, 0.8))
     
-    # 7. App config
+    # 8. App config
     status, data = _get(base_url, "/api/config", token)
     if step("GET  /api/config", status, data): successes += 1
     time.sleep(delay * random.uniform(0.2, 0.6))
 
-    # 8. Stock search
+    # 9. Stock search
     status, data = _get(base_url, f"/api/stocks/search?q={ticker}", token)
     if step(f"GET  /api/stocks/search?q={ticker}", status, data): successes += 1
     time.sleep(delay * random.uniform(0.5, 1.5))
 
-    # 9. Stock quote
+    # 10. Stock quote
     status, data = _get(base_url, f"/api/stocks/quote?ticker={ticker}", token)
     if step(f"GET  /api/stocks/quote?ticker={ticker}", status, data): successes += 1
     time.sleep(delay * random.uniform(0.5, 1.5))
 
-    # 10. Stock history
+    # 11. Stock history
     period   = random.choice(["1mo", "3mo", "6mo", "1y"])
     interval = random.choice(["1d", "1wk"])
     status, data = _get(base_url,
@@ -478,17 +484,17 @@ def simulate_session(base_url, user, session_id, delay):
         successes += 1
     time.sleep(delay * random.uniform(0.5, 1.5))
 
-    # 11. Portfolio
+    # 12. Portfolio
     status, data = _get(base_url, "/api/stocks/portfolio", token)
     if step("GET  /api/stocks/portfolio", status, data): successes += 1
     time.sleep(delay * random.uniform(0.3, 0.8))
 
-    # 12. Orders
+    # 13. Orders
     status, data = _get(base_url, "/api/stocks/orders", token)
     if step("GET  /api/stocks/orders", status, data): successes += 1
     time.sleep(delay * random.uniform(0.3, 0.8))
 
-    # 13. Buy stock – tiny fractional quantity to stay within balance
+    # 14. Buy stock – tiny fractional quantity to stay within balance
     inv_account = next((a for a in accounts if a.endswith("003")), accounts[0])
     buy_qty = round(random.uniform(0.01, 0.1), 2)
     status, data = _post(base_url, "/api/stocks/buy",
@@ -500,7 +506,7 @@ def simulate_session(base_url, user, session_id, delay):
         log_warn(f"POST /api/stocks/buy [{status}] – {data.get('error', data)}")
     time.sleep(delay * random.uniform(0.5, 1.5))
 
-    # 14. Transfer between own accounts
+    # 15. Transfer between own accounts
     if len(accounts) >= 2:
         from_acc, to_acc = accounts[0], accounts[1]
         amount = round(random.uniform(1.0, 50.0), 2)
@@ -515,7 +521,7 @@ def simulate_session(base_url, user, session_id, delay):
             log_warn(f"POST /api/transfer [{status}] – {data.get('error', data)}")
         time.sleep(delay * random.uniform(0.5, 1.5))
 
-    # 15. Logout
+    # 16. Logout
     status, data = _post(base_url, "/api/logout", {}, token=token)
     if step("POST /api/logout", status, data): successes += 1
 
