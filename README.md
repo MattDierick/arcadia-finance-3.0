@@ -723,3 +723,5 @@ Example response:
         └── server.py           # Yahoo Finance MCP server (MIT, © Alex2Yang97,
                                 #   verbatim copy — not modified)
 ```
+
+The end...
