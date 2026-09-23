@@ -1,0 +1,24 @@
+name: Deploy to production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy docker compose stack
+    runs-on: [self-hosted, arcadia-prod]
+    timeout-minutes: 15
+    steps:
+      - name: Run deploy script
+        run: /home/azureuser/deploy-arcadia.sh
+
+      - name: Show recent deploy log
+        if: always()
+        run: tail -n 60 /home/azureuser/arcadia-deploy.log
