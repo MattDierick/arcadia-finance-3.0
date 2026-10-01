@@ -81,7 +81,7 @@ def _http(method, url, body=None, headers=None):
     headers = headers or {}
     headers["x-traffic-gen"] = "allowed"
     headers["xff"]    = _random_ip()
-    headers["Cookie"] = f"_imp_apg_r_={_random_did()}"
+    headers["Cookie"] = f"uuid={_random_did()}"
     data = json.dumps(body).encode() if body is not None else None
     if data:
         headers.setdefault("Content-Type", "application/json")
@@ -103,11 +103,11 @@ def _http_bot(method, url, body=None, headers=None):
     Identical to _http but deliberately omits x-traffic-gen.
     Used for bot-protection requests that must look like unmarked traffic
     so the WAF/bot-defence engine sees them without the allow-list marker.
-    Still injects a random xff IP and _imp_apg_r_ cookie.
+    Still injects a random xff IP and uuid cookie.
     """
     headers = headers or {}
     headers.setdefault("xff",    _random_ip())
-    headers.setdefault("Cookie", f"_imp_apg_r_={_random_did()}")
+    headers.setdefault("Cookie", f"uuid={_random_did()}")
     data = json.dumps(body).encode() if body is not None else None
     if data:
         headers.setdefault("Content-Type", "application/json")
@@ -167,7 +167,7 @@ def _random_ip():
         return f"{a}.{random.randint(0, 255)}.{random.randint(0, 255)}.{random.randint(1, 254)}"
 
 def _random_did():
-    """Generate a random 16-char hex device-id (mimics _imp_apg_r_ cookie value)."""
+    """Generate a random 16-char hex device-id (mimics uuid cookie value)."""
     return f"{random.getrandbits(64):016x}"
 
 def _fake_jwt():
@@ -209,6 +209,28 @@ def step(label, status, data, expected=200):
     print(f"    {m}  [{status}] {label}{detail}")
     return ok
 
+# Retain the same uuid for at least 30 attack requests so WAF / XC Malicious
+# User Detection aggregates enough security events for the client.
+ATTACK_UUID_MIN_REQUESTS = 30
+_attack_did = None
+_attack_did_req_count = 0
+_attack_did_lock = threading.Lock()
+
+def _get_attack_did(num_requests=6):
+    """
+    Return a device-id (uuid cookie) for attack requests.
+    Reuses the same uuid for at least ATTACK_UUID_MIN_REQUESTS attack requests
+    before rotating. Thread-safe.
+    """
+    global _attack_did, _attack_did_req_count
+    with _attack_did_lock:
+        if _attack_did is None or _attack_did_req_count >= ATTACK_UUID_MIN_REQUESTS:
+            _attack_did = _random_did()
+            _attack_did_req_count = 0
+        did = _attack_did
+        _attack_did_req_count += num_requests
+        return did
+
 # ── Attack simulation ─────────────────────────────────────────────────────────
 
 def simulate_attacks(base_url, session_id, delay):
@@ -226,16 +248,16 @@ def simulate_attacks(base_url, session_id, delay):
     All requests:
       • carry x-traffic-gen: allowed (via _raw)
       • use a randomly picked spoofed IP in the xff header
-      • use a randomly picked device-id in the _imp_apg_r_ cookie
+      • use the same device-id in the uuid cookie for at least 30 attack requests
       • follow redirects (urllib handles 3xx automatically)
       • discard the response body (--output /dev/null equivalent)
       • ignore TLS errors (curl -k equivalent)
     """
     ip  = _random_ip()
-    did = _random_did()
-    # Build common headers shared by all five attacks
+    did = _get_attack_did(num_requests=6)
+    # Build common headers shared by all six attacks
     common = {
-        "Cookie": f"_imp_apg_r_={did}",
+        "Cookie": f"uuid={did}",
         "xff":    ip,
     }
 
@@ -373,7 +395,7 @@ def simulate_bot_protection(base_url, session_id, delay):
 
     These requests intentionally omit the x-traffic-gen header so they
     arrive at the WAF as unmarked traffic — indistinguishable from a real
-    automated bot.  The random xff IP and _imp_apg_r_ cookie are still
+    automated bot.  The random xff IP and uuid cookie are still
     injected (via _http_bot) to vary the fingerprint per iteration.
 
     Probes covered:
@@ -392,7 +414,7 @@ def simulate_bot_protection(base_url, session_id, delay):
         f"{base_url}/api/login",
         body={"username": "thomas", "password": "thomas123"},
         headers={"Content-Type": "application/json",
-                 "xff": ip, "Cookie": f"_imp_apg_r_={did}"},
+                 "xff": ip, "Cookie": f"uuid={did}"},
     )
     print(f"    {'✔' if status == 200 else '–'}  [{status or '---'}]"
           f" POST /api/login  (automated login – no x-traffic-gen)")

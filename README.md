@@ -462,7 +462,7 @@ Three standalone Python scripts live in `traffic-gen/`. They require **Python 3.
 
 All scripts share the same conventions:
 - Every request carries `x-traffic-gen: allowed` (used as a WAF allow-list marker).
-- Every request carries a fresh random `xff` IP and `_imp_apg_r_` cookie per call.
+- Every request carries a fresh random `xff` IP and `uuid` cookie per call.
 - Use `--help` on any script to see all options.
 
 ---

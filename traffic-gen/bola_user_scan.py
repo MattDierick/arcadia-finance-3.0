@@ -8,7 +8,7 @@ Sends exactly 100 GET /api/users/{id} requests — one per BOLA target user
 Each request:
   • Is authenticated with a valid JWT signed with the real app secret,
     issued in the name of that specific user (sub = user_id).
-  • Carries a unique xff IP and _imp_apg_r_ cookie (generated fresh per request).
+  • Carries a unique xff IP and uuid cookie (generated fresh per request).
   • Carries x-traffic-gen: allowed.
 
 Because each user requests their OWN /api/users/{id}, the BOLA vulnerability
@@ -133,7 +133,7 @@ def _random_ip():
             return f"{a}.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}"
 
 def _random_did():
-    """Random 16-char hex device-id for _imp_apg_r_ cookie."""
+    """Random 16-char hex device-id for uuid cookie."""
     return f"{random.getrandbits(64):016x}"
 
 # ── HTTP helper ───────────────────────────────────────────────────────────────
@@ -146,7 +146,7 @@ def _get(url, token):
         "Authorization": f"Bearer {token}",
         "x-traffic-gen": "allowed",
         "xff":            ip,
-        "Cookie":         f"_imp_apg_r_={did}",
+        "Cookie":         f"uuid={did}",
     }, method="GET")
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
