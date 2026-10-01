@@ -202,8 +202,8 @@ def accounts():
     # Allow an explicit user_id query param (kept for backward compat), otherwise use the authenticated user
     user_id = request.args.get("user_id") or g.current_user_id
     rows = db.query(
-        "SELECT id, account_number, type, balance, currency, created_at FROM accounts WHERE user_id = %s ORDER BY type",
-        (user_id,)
+        f"SELECT id, account_number, type, balance, currency, created_at FROM accounts WHERE user_id = '{user_id}' ORDER BY type",
+        # (user_id,)
     )
     for r in rows:
         r["balance"] = float(r["balance"])
